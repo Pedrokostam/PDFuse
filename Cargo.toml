@@ -3,7 +3,6 @@ resolver = "2"
 members = [
     "pdfuse-merging",
     "pdfuse-parameters",
-    "pdfuse-rest",
     "pdfuse-sizing",
     "pdfuse-utils",
 ]

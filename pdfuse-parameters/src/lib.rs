@@ -1,18 +1,16 @@
-#![allow(dead_code)]
-#![allow(unused)]
-mod parameters;
 mod commandline_arguments;
-mod paths;
-mod file_finder;
 pub mod errors;
-pub use parameters::{ParametersWithPaths,Parameters};
-pub use file_finder::{SourcePath};
+mod file_finder;
+mod parameters;
+mod paths;
 pub use commandline_arguments::Args;
+pub use file_finder::SourcePath;
+pub use parameters::{Parameters, ParametersWithPaths};
 rust_i18n::i18n!();
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
 
     // #[test]
     // fn it_works() {

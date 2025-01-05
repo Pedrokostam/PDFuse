@@ -2,11 +2,7 @@ use pdfuse_sizing::{CustomSize, Size};
 use pdfuse_utils::{create_temp_dir, error_t, Indexed};
 use printpdf::lopdf::{Bookmark, Document, Object, ObjectId};
 use rayon::prelude::*;
-use std::{
-    collections::BTreeMap,
-    fmt::Display,
-    path::PathBuf,
-};
+use std::{collections::BTreeMap, fmt::Display, path::PathBuf};
 
 pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
@@ -27,17 +23,6 @@ pub enum Data {
 
 pub type PdfResult<T> = std::result::Result<T, DocumentLoadError>;
 pub type IndexedPdfResult<T> = Indexed<PdfResult<T>>;
-
-fn helpme<TSource, TTarget, TErrorSource, TErrorTarget, F>(
-    value: Indexed<Result<TSource, TErrorSource>>,
-    f: F,
-) -> Indexed<Result<TTarget, TErrorTarget>>
-where
-    F: FnOnce(TSource) -> TTarget,
-    TErrorSource: Into<TErrorTarget>,
-{
-    value.map_with_index(|indexed| indexed.map(f).map_err(Into::into))
-}
 
 impl From<LoadedImage> for Data {
     fn from(value: LoadedImage) -> Self {
@@ -112,8 +97,8 @@ pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
     if !parameters.force_image_page_fallback_size {
         for indexed_result in loaded_all.iter().filter(|i| i.value().is_ok()) {
             match indexed_result.value().as_ref().unwrap() {
-                Data::Image(loaded_image) => continue,
                 Data::Document(loaded_document) => first_page_size = loaded_document.page_size(),
+                _ => continue,
             }
             if first_page_size.is_some() {
                 break;
@@ -150,13 +135,6 @@ pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
     );
 }
 
-fn datify<T>(value: Indexed<T>) -> Indexed<Data>
-where
-    T: Into<Data>,
-{
-    value.map_with_index(|x| x.into())
-}
-
 fn preload_image_indexed(path: Indexed<PathBuf>) -> Indexed<PdfResult<Data>> {
     path.map_with_index(|path| LoadedImage::load(&path).map(Into::into).map_err(Into::into))
 }
@@ -164,64 +142,10 @@ fn preload_pdf_indexed(path: Indexed<PathBuf>) -> Indexed<PdfResult<Data>> {
     path.map_with_index(preload_pdf)
 }
 fn preload_pdf(path: PathBuf) -> PdfResult<Data> {
-    LoadedDocument::new_pdf(&path)
+    LoadedDocument::load_pdf(&path)
         .map(Into::into)
         .map_err(Into::into)
 }
-fn preload_images(image_paths: Vec<Indexed<PathBuf>>) -> Vec<Indexed<PdfResult<LoadedImage>>> {
-    image_paths
-        .into_iter()
-        .map(|p| p.map_with_index(|path| LoadedImage::load(&path).map_err(Into::into)))
-        .collect()
-}
-
-fn preload_pdfs(image_paths: Vec<Indexed<PathBuf>>) -> Vec<Indexed<PdfResult<LoadedDocument>>> {
-    image_paths
-        .into_iter()
-        .map(|p| p.map_with_index(|path| LoadedDocument::new_pdf(&path).map_err(Into::into)))
-        .collect()
-}
-
-// fn load_impl(
-//     source: Indexed<SourcePath>,
-//     parameters: &ParametersWithPaths,
-// ) -> Option<Indexed<Data>> {
-//     trace_t!("debug.loading_file", path = source);
-//     let load_start = std::time::Instant::now();
-//     let data: Option<Data> = match source.value() {
-//         Pdf(path_buf) | LibreDocument(path_buf) => {
-//             let doc_data = LoadedDocument::new(path_buf, parameters.libreoffice_path.as_deref());
-//             match doc_data {
-//                 Ok(document_data) => Some(Data::Document(document_data)),
-//                 Err(error) => {
-//                     error_t!("error.docpdf_conversion", path = path_buf.display());
-//                     None
-//                 }
-//             }
-//         }
-//         Image(path_buf) => {
-//             let img_data = LoadedImage::load(path_buf);
-//             match img_data {
-//                 Ok(loaded) => Some(Data::Image(loaded)),
-//                 Err(_) => {
-//                     error_t!("error.image_loading", path = path_buf.display());
-//                     None
-//                 }
-//             }
-//         }
-//     };
-//     let load_end = std::time::Instant::now();
-//     debug_t!(
-//         "debug.loaded_file_in",
-//         path = source,
-//         seconds = (load_end - load_start).as_secs_f32()
-//     );
-//     data.map(|d| Indexed::<Data>::new(source.index(), d))
-// }
-// pub fn merge(loaded_data: Vec<Data>, parameters: &ParametersWithPaths) {
-//     let documents = convert_data_to_documents(loaded_data, parameters);
-//     merge_documents(documents, &parameters.output_file);
-// }
 fn convert_data_to_documents(
     document_paths: Vec<Indexed<PathBuf>>,
     parameters: &Parameters,
@@ -255,9 +179,9 @@ where
     let mut document = Document::with_version("1.5");
     // https://github.com/J-F-Liu/lopdf/blob/0d65f6ed5b55fde1a583861535b4bfc6cdf42de1/README.md
     for result in documents {
-        if result.is_err(){
-            error_t!("error.image_loading",path=result.unwrap_err());
-            continue;;
+        if result.is_err() {
+            error_t!("error.image_loading", path = result.unwrap_err());
+            continue;
         }
         let mut doc = result.unwrap();
         let mut first = false;
@@ -419,8 +343,4 @@ where
     // Save the merged PDF
     // Store file in current working directory.
     // Note: Line is excluded when running tests
-}
-
-pub fn do_everything(files: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
-    load(files, parameters);
 }

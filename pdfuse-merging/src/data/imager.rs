@@ -5,10 +5,6 @@ use printpdf::{
     lopdf::Document, Image, ImageTransform, ImageXObject, PdfDocumentReference, PdfLayerReference,
     Px,
 };
-use std::{
-    fs::File,
-    io::BufWriter,
-};
 
 pub struct Imager {
     pub(crate) document: PdfDocumentReference,
@@ -93,12 +89,6 @@ impl Imager {
         let image_to_add: Image = pdf_image.into();
         image_to_add.add_to_layer(current_layer, transform);
         self.page_count += 1;
-    }
-
-    pub fn save(self, path: &str) {
-        let output = File::create(path).unwrap();
-        let mut write = BufWriter::new(output);
-        self.document.save(&mut write).expect("Failed saving imager.");
     }
 }
 

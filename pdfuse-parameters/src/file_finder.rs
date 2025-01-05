@@ -1,11 +1,9 @@
 use std::path::PathBuf;
 use std::{fmt::Display, path::Path};
 
-use log::info;
 use once_cell::sync::Lazy;
-use pdfuse_utils::{info_t, Indexed};
 use pdfuse_utils::BusyIndicator;
-use serde::ser::SerializeStruct;
+use pdfuse_utils::{info_t, Indexed};
 use serde::Deserialize;
 use serde::Serialize;
 use walkdir::{DirEntry, WalkDir};
@@ -168,7 +166,7 @@ impl SourcePath {
         Err(InvalidSourceType(canon_path))
     }
 }
-impl From<SourcePath> for PathBuf{
+impl From<SourcePath> for PathBuf {
     fn from(value: SourcePath) -> Self {
         match value {
             SourcePath::Image(p) | SourcePath::LibreDocument(p) | SourcePath::Pdf(p) => p,
@@ -182,7 +180,7 @@ impl Display for SourcePath {
             SourcePath::Pdf(path) => path.to_string_lossy(),
             SourcePath::LibreDocument(path) => path.to_string_lossy(),
         };
-        write!(f, "{}",d.trim_start_matches(r"\\?\"))
+        write!(f, "{}", d.trim_start_matches(r"\\?\"))
     }
 }
 
@@ -252,7 +250,8 @@ pub fn get_files(
     }
     info_t!("found_files_header");
     for val_path in &valid_paths {
-        info_t!("found_file", path=val_path);}
+        info_t!("found_file", path = val_path);
+    }
     if sort {
         valid_paths.sort();
     }

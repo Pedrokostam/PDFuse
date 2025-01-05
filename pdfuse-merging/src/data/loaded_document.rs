@@ -1,5 +1,5 @@
 use pdfuse_sizing::{CustomSize, Length};
-use pdfuse_utils::{create_temp_dir, debug_t, error_t};
+use pdfuse_utils::{debug_t, error_t};
 use printpdf::lopdf::Document;
 use std::{
     fmt::{Debug, Display},
@@ -70,50 +70,13 @@ impl LoadedDocument {
         }
         page_size
     }
-    pub fn new(
-        path: impl AsRef<Path>,
-        libre_path: Option<&Path>,
-    ) -> Result<LoadedDocument, DocumentLoadError> {
-        let ref_path = path.as_ref();
-        match ref_path.extension().map(|x| x.to_ascii_lowercase()) {
-            Some(ext) if ext == "pdf" => Self::new_pdf_libre(ref_path, libre_path),
-            Some(_) => Self::new_libre(ref_path, libre_path).or_else(|_| Self::new_pdf(ref_path)),
-            _ => Self::new_pdf_libre(ref_path, libre_path),
-        }
-    }
-    pub fn new_pdf(path: &Path) -> Result<LoadedDocument, DocumentLoadError> {
+    pub fn load_pdf(path: &Path) -> Result<LoadedDocument, DocumentLoadError> {
         Document::load(path)
             .map(|data| LoadedDocument {
                 data,
                 source_path: path.to_path_buf(),
             })
             .map_err(Into::into)
-    }
-    pub fn new_libre(
-        path: &Path,
-        libre_path: Option<&Path>,
-    ) -> Result<LoadedDocument, DocumentLoadError> {
-        let temp_dir = create_temp_dir();
-        let path = convert_document_to_pdf(
-            path,
-            libre_path.as_ref().expect(
-                "At this stage there should be no libre paths if libreoffice is not installed.",
-            ),
-            &temp_dir,
-        )?;
-        Self::new_pdf(&path)
-    }
-    fn new_pdf_libre(
-        path: &Path,
-        libre_path: Option<&Path>,
-    ) -> Result<LoadedDocument, DocumentLoadError> {
-        Self::new_pdf(path).or_else(|_| Self::new_libre(path, libre_path))
-    }
-    fn new_libre_pdf(
-        path: &Path,
-        libre_path: Option<&Path>,
-    ) -> Result<LoadedDocument, DocumentLoadError> {
-        Self::new_libre(path, libre_path).or_else(|_| Self::new_pdf(path))
     }
 }
 pub fn convert_document_to_pdf(
