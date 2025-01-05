@@ -1,4 +1,4 @@
-use image::{imageops::FilterType, DynamicImage, ImageReader};
+use image::{imageops::FilterType, DynamicImage};
 use pdfuse_sizing::{CustomSize, Length, Size};
 use pdfuse_utils::debug_t;
 use printpdf::{
@@ -8,7 +8,6 @@ use printpdf::{
 use std::{
     fs::File,
     io::BufWriter,
-    path::{Path, PathBuf},
 };
 
 pub struct Imager {

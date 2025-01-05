@@ -1,21 +1,18 @@
 use pdfuse_sizing::{CustomSize, Size};
-use pdfuse_utils::{create_temp_dir, debug_t, error_t, trace_t, Indexed};
+use pdfuse_utils::{create_temp_dir, error_t, Indexed};
 use printpdf::lopdf::{Bookmark, Document, Object, ObjectId};
 use rayon::prelude::*;
 use std::{
-    borrow::BorrowMut,
-    collections::{BTreeMap, VecDeque},
+    collections::BTreeMap,
     fmt::Display,
-    path::{Path, PathBuf},
-    sync::Arc,
+    path::PathBuf,
 };
 
-use dashmap::DashMap;
 pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
 pub use loaded_image::LoadedImage;
 use pdfuse_parameters::{
-    Parameters, ParametersWithPaths,
+    Parameters,
     SourcePath::{self, Image, LibreDocument, Pdf},
 };
 
