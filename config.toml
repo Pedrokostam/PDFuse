@@ -1,0 +1,14 @@
+confirm_exit = true
+quiet = false
+what_if = false
+recursion_limit = 5
+image_page_fallback_size = "A2"
+dpi = 900
+margin = "5 mm x 0 mm"
+force_image_page_fallback_size = false
+alphabetic_file_sorting = false
+libreoffice_path = [
+    '%PROGRAMFILES%\LibreOffice\program\soffice.exe',
+    '%PROGRAMFILES(X86)%\LibreOffice\program\soffice.exe',
+]
+output_directory = "."

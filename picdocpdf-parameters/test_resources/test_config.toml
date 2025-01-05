@@ -1,0 +1,12 @@
+confirm_exit = true
+quiet = true
+what_if = true
+language = "de"
+recursion_limit = 17
+image_page_fallback_size = "C10"
+dpi = 1337
+margin = "1.3 mm x 1.3 mm"
+force_image_page_fallback_size = true
+alphabetic_file_sorting = true
+libreoffice_path = ["/usr/bin/sl"]
+output_directory = "~/o"

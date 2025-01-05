@@ -1,0 +1,22 @@
+[package]
+name = "pdfuse-merging"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+image = "0.25.5"
+pdfuse-sizing = { path = "../pdfuse-sizing" }
+pdfuse-utils = { path = "../pdfuse-utils" }
+pdfuse-parameters = { path = "../pdfuse-parameters" }
+printpdf = "0.7.0"
+rust-i18n.workspace = true
+dashmap = "6.1.0"
+rayon = "1.10.0"
+
+[lints]
+workspace = true
+
+[package.metadata.i18n]
+available-locales = ["en", "pl"]
+default-locale = "en"
+load-path = "../locales"
