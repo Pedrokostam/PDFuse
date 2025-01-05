@@ -1,8 +1,9 @@
 use std::path::PathBuf;
+use std::time::Duration;
 use std::{fmt::Display, path::Path};
 
 use once_cell::sync::Lazy;
-use pdfuse_utils::BusyIndicator;
+use pdfuse_utils::{error_t, BusyIndicator};
 use pdfuse_utils::{info_t, Indexed};
 use serde::Deserialize;
 use serde::Serialize;
@@ -66,29 +67,6 @@ fn is_valid_source(entry: &DirEntry, extensions: &[&str]) -> bool {
     }
 }
 
-/// Filters files by extension (case-insensitive)
-fn get_matching_source_paths(
-    entry: &DirEntry,
-    extensions: &[&str],
-) -> Result<SourcePath, InvalidSourceType> {
-    if !entry.file_type().is_file() {
-        return Err(InvalidSourceType(entry.path().to_owned()));
-    }
-    if let Some(ext) = entry.path().extension() {
-        let ext = ext.to_string_lossy().to_lowercase(); // Convert to lowercase
-        let contains = extensions.iter().any(|&e| e.eq_ignore_ascii_case(&ext));
-        if contains {
-            return SourcePath::from_path(entry.path());
-        }
-    }
-    Err(InvalidSourceType(entry.path().to_owned()))
-}
-#[derive()]
-pub struct FileFindParams {
-    pub max_depth: usize,
-    pub supports_office: bool,
-    pub callback: Option<BusyIndicator>,
-}
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Eq)]
 pub enum SourcePath {
     Image(PathBuf),
@@ -115,8 +93,13 @@ impl Ord for SourcePath {
         this.cmp(that)
     }
 }
-pub struct InvalidSourceType(PathBuf);
+pub struct InvalidSourceType(String);
 
+impl Display for InvalidSourceType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 impl TryFrom<&Path> for SourcePath {
     type Error = InvalidSourceType;
 
@@ -135,12 +118,18 @@ impl TryFrom<DirEntry> for SourcePath {
     type Error = InvalidSourceType;
 
     fn try_from(value: DirEntry) -> Result<Self, Self::Error> {
-        let a = 2;
         match value.path().canonicalize() {
             Ok(c) => c.as_path().try_into(),
-            Err(_) => Err(InvalidSourceType(value.path().to_owned())),
+            Err(_) => Err(InvalidSourceType(display_path(value.path()))),
         }
     }
+}
+
+fn display_path(path: impl AsRef<Path>) -> String {
+    path.as_ref()
+        .to_string_lossy()
+        .trim_start_matches(r"\\?\")
+        .to_string()
 }
 
 impl SourcePath {
@@ -150,10 +139,9 @@ impl SourcePath {
             .map(|e| e.to_string_lossy().to_lowercase())
             .unwrap_or_default();
         let ext_str = ext.as_str();
-        let q = IMAGE_EXTENSIONS.binary_search(&ext_str).is_ok();
         let canon_path = path
             .canonicalize()
-            .map_err(|_| InvalidSourceType(path.to_owned()))?;
+            .map_err(|_| InvalidSourceType(display_path(path)))?;
         if IMAGE_EXTENSIONS.binary_search(&ext_str).is_ok() {
             return Ok(SourcePath::Image(canon_path));
         }
@@ -163,7 +151,7 @@ impl SourcePath {
         if ALL_LIBRE_EXTENSIONS.binary_search(&ext_str).is_ok() {
             return Ok(SourcePath::LibreDocument(canon_path));
         }
-        Err(InvalidSourceType(canon_path))
+        Err(InvalidSourceType(display_path(canon_path)))
     }
 }
 impl From<SourcePath> for PathBuf {
@@ -175,12 +163,10 @@ impl From<SourcePath> for PathBuf {
 }
 impl Display for SourcePath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let d = match self {
-            SourcePath::Image(path) => path.to_string_lossy(),
-            SourcePath::Pdf(path) => path.to_string_lossy(),
-            SourcePath::LibreDocument(path) => path.to_string_lossy(),
+        let path = match self {
+            Self::Image(path) | Self::Pdf(path) | Self::LibreDocument(path) => path,
         };
-        write!(f, "{}", d.trim_start_matches(r"\\?\"))
+        write!(f, "{}", display_path(path))
     }
 }
 
@@ -237,23 +223,29 @@ pub fn get_files(
     allow_office_docs: bool,
     sort: bool,
 ) -> Vec<Indexed<SourcePath>> {
+    let busy = BusyIndicator::new();
     let mut valid_paths: Vec<SourcePath> = vec![];
-    for (index, path) in paths.iter().enumerate() {
+    for path in paths.iter() {
         let path = path.as_ref();
         if path.is_file() {
-            if let Ok(source_path) = SourcePath::from_path(path) {
-                valid_paths.push(source_path);
-            }
+            match SourcePath::from_path(path) {
+                Ok(source_path) => valid_paths.push(source_path),
+                // only report the error if it was specified directly in the commandline
+                // do not do it for files from recursion
+                Err(err) => error_t!("error.not_supported", path = err),
+            };
         } else if path.is_dir() {
             recurse_folder(path, max_depth, allow_office_docs, &mut valid_paths)
         }
     }
+    if sort {
+        valid_paths.sort();
+    }
+    std::thread::sleep(Duration::from_millis(2000));
+    drop(busy);
     info_t!("found_files_header");
     for val_path in &valid_paths {
         info_t!("found_file", path = val_path);
-    }
-    if sort {
-        valid_paths.sort();
     }
     valid_paths
         .into_iter()

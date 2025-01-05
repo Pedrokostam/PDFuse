@@ -16,3 +16,4 @@ error:
   docpdf_conversion: 'Error while converting document %{path} to pdf.'
   image_loading: 'Error while loading image %{path}.'
   invalid_mediabox: 'Could not read media box of any page of %{document}.'
+  not_supported: 'The following immediate file has unsupported type: %{path}'
