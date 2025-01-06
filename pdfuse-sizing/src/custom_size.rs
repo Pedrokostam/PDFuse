@@ -34,6 +34,13 @@ where
         }
     }
 }
+
+impl Default for CustomSize{
+    fn default() -> Self {
+        Self { horizontal: Length::zero(), vertical: Length::zero() }
+    }
+}
+
 impl TryFrom<&str> for CustomSize {
     type Error = LengthParseError;
 
@@ -41,6 +48,7 @@ impl TryFrom<&str> for CustomSize {
         Self::try_from_string(value)
     }
 }
+
 impl TryFrom<String> for CustomSize {
     type Error = LengthParseError;
 
@@ -48,11 +56,13 @@ impl TryFrom<String> for CustomSize {
         Self::try_from_string(&value)
     }
 }
+
 impl From<CustomSize> for String{
     fn from(value: CustomSize) -> Self {
         value.to_string()
     }
 }
+
 impl<T> Mul<T> for CustomSize
 where
     T: Copy + Into<f64>,
@@ -66,6 +76,7 @@ where
         }
     }
 }
+
 impl Display for CustomSize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match f.precision() {
@@ -91,6 +102,7 @@ impl Add<Self> for CustomSize {
         }
     }
 }
+
 impl Neg for CustomSize {
     type Output = Self;
 
@@ -233,6 +245,7 @@ impl From<IsoPaper> for CustomSize {
         value.to_custom_size()
     }
 }
+
 impl From<PageSize> for CustomSize {
     fn from(value: PageSize) -> Self {
         match value {

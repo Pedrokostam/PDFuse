@@ -2,11 +2,10 @@ use std::path::PathBuf;
 
 use pdfuse_sizing::{CustomSize, PageSize};
 use pdfuse_utils::Indexed;
-use serde::{Deserialize, Serialize};
 
 use crate::{errors::ConfigError, Args, SourcePath};
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Default)]
 pub struct Parameters{
     pub confirm_exit: bool,
     pub quiet: bool,
@@ -29,6 +28,6 @@ unsafe impl Send for ParametersWithPaths{}
 impl ParametersWithPaths{
     pub fn parse()->Result<Self,ConfigError>{
         let a = Args::create()?;
-        a.make_parameters().map_err(|ivnalid| ivnalid.into())
+        a.make_parameters().map_err(|invalid| invalid.into())
     }
 }

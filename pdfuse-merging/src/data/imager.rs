@@ -21,7 +21,7 @@ impl Imager {
     }
     pub fn new<FloatLike, PageLike>(
         title: &str,
-        fallback_page_size: PageLike,
+        page_size: PageLike,
         dpi: FloatLike,
         margin: CustomSize,
     ) -> Self
@@ -32,7 +32,7 @@ impl Imager {
         Imager {
             document: printpdf::PdfDocument::empty(title)
                 .with_conformance(printpdf::PdfConformance::A2_2011_PDF_1_7),
-            page_size: fallback_page_size.into(),
+            page_size: page_size.into(),
             dpi: dpi.into(),
             margin,
             page_count: 0,

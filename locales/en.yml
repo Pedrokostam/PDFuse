@@ -2,6 +2,11 @@ found_files_header: 'Found files:'
 auto_file_name_stem: "merged"
 time_taken: 'Merging took %{duration_seconds} seconds'
 found_file: '%{path}'
+progress:
+  found_items_scanning: 'Found %{count} files...'
+  document_conversion: 'Converting documents to PDF: %{current}/%{total_count} done'
+  image_conversion: 'Converting images to PDF: : %{current}/%{total_count} done'
+  final_join: 'Joining PDFs into one file...'
 debug:
   excess_dpi: 'Requested DPI would requires upscaling the image, leaving image at %{dpi} dpi.'
   zero_mediabox: 'Media box of %{document} is zero.'
