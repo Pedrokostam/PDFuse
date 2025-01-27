@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::thread::sleep;
 use std::time::Duration;
 use std::{fmt::Display, path::Path};
 
@@ -197,6 +198,7 @@ fn recurse_folder(
     max_depth: usize,
     allow_office_docs: bool,
     output: &mut Vec<SourcePath>,
+    busy_indicator: &BusyIndicator,
 ) {
     // let path = folder_path.replace('\\', "/");
     let extensions = if allow_office_docs {
@@ -204,18 +206,18 @@ fn recurse_folder(
     } else {
         &ALL_SIMPLE_SUPPORTED_EXTENSIONS
     };
+    let mut count = output.len();
     let enumerable = WalkDir::new(folder_path)
         .max_depth(max_depth)
         .into_iter()
         .filter_map(|e| e.ok()) // Skip errors
         .filter(|entry| is_valid_source(entry, extensions))
-        .filter_map(|d| SourcePath::try_from(d).ok());
-    for index_source in enumerable {
-        output.push(index_source);
-        // if let Some(x) = &params.callback {
-        //     x.update(output.len())
-        // }
-    }
+        .filter_map(|d| SourcePath::try_from(d).ok())
+        .inspect(|_| {
+            count += 1;
+            busy_indicator.update(format!("Found {} files", count).as_str());
+        });
+    output.extend(enumerable);
 }
 pub fn get_files(
     paths: &[impl AsRef<Path>],
@@ -223,33 +225,42 @@ pub fn get_files(
     allow_office_docs: bool,
     sort: bool,
 ) -> Vec<Indexed<SourcePath>> {
-    let busy = BusyIndicator::new();
+    let busy = BusyIndicator::new_with_message("scanning files...");
     let mut valid_paths: Vec<SourcePath> = vec![];
     for path in paths.iter() {
         let path = path.as_ref();
         if path.is_file() {
             match SourcePath::from_path(path) {
-                Ok(source_path) => valid_paths.push(source_path),
+                Ok(source_path) => {
+                    valid_paths.push(source_path);
+                    busy.update(format!("Found {} files", valid_paths.len()).as_str());
+                }
                 // only report the error if it was specified directly in the commandline
                 // do not do it for files from recursion
                 Err(err) => error_t!("error.not_supported", path = err),
             };
         } else if path.is_dir() {
-            recurse_folder(path, max_depth, allow_office_docs, &mut valid_paths)
+            recurse_folder(path, max_depth, allow_office_docs, &mut valid_paths, &busy)
         }
     }
     if sort {
         valid_paths.sort();
     }
-    std::thread::sleep(Duration::from_millis(2000));
     drop(busy);
     info_t!("found_files_header");
-    for val_path in &valid_paths {
-        info_t!("found_file", path = val_path);
-    }
-    valid_paths
+    let files: Vec<Indexed<SourcePath>> = valid_paths
         .into_iter()
         .enumerate()
         .map(|tup| tup.into())
-        .collect()
+        .collect();
+    if files.is_empty() {
+        return vec![];
+    }
+
+    let width = (files.len().ilog10() + 1) as usize;
+    for file in &files {
+        let padded = format!("{:width$}", file.index() + 1, width = width);
+        info_t!("found_file", path = file.value(), index = padded);
+    }
+    files
 }

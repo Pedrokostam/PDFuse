@@ -1,4 +1,3 @@
-
 use std::time::Duration;
 
 use indicatif::{ProgressBar, ProgressStyle};
@@ -18,11 +17,16 @@ impl BusyIndicator {
                 .template("{spinner} {msg}")
                 .unwrap(),
         );
-        bar.enable_steady_tick(Duration::from_millis(100));
-        BusyIndicator{bar}
+        bar.enable_steady_tick(Duration::from_millis(150));
+        BusyIndicator { bar }
     }
-    pub fn update(&self, index: usize) {
-        self.bar.set_message(format!("Found {} items...", index));
+    pub fn new_with_message(message:&str) -> Self {
+        let s = Self::new();
+        s.bar.set_message(message.to_owned());
+        s
+    }
+    pub fn update(&self, new_status:&str) {
+        self.bar.set_message(new_status.to_owned());
     }
 }
 
@@ -32,6 +36,4 @@ impl Default for BusyIndicator {
     }
 }
 
-pub fn update_busy_indicator(_message: &str){
-}
-
+pub fn update_busy_indicator(_message: &str) {}

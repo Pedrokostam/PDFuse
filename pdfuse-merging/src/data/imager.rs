@@ -6,6 +6,8 @@ use printpdf::{
     Px,
 };
 
+use super::LoadedImage;
+
 pub struct Imager {
     pub(crate) document: PdfDocumentReference,
     pub(crate) page_size: CustomSize,
@@ -52,7 +54,7 @@ impl Imager {
         self.page_count
     }
 
-    pub fn add_image(&mut self, image: impl Into<DynamicImage>) {
+    pub fn add_image(&mut self, image: LoadedImage) {
         let page_size = self.page_size;
         let decoded_image = image.into();
         let page_with_margins = page_size - self.margin;
@@ -92,22 +94,23 @@ impl Imager {
     }
 }
 
-fn adjust_to_dpi(image: DynamicImage, draw_area: CustomSize, dpi: f64) -> DynamicImage {
+fn adjust_to_dpi(image: LoadedImage, draw_area: CustomSize, dpi: f64) -> DynamicImage {
     let horizontal_pixel_max = (draw_area.horizontal.inch() * dpi) as u32;
     let vertical_pixel_max = (draw_area.vertical.inch() * dpi) as u32;
     if horizontal_pixel_max > image.width() || vertical_pixel_max > image.height() {
         let target_dpi = (image.width() as f64 / draw_area.horizontal.inch()) as u32;
         debug_t!("debug.excess_dpi", dpi = target_dpi);
-        return image;
+        return image.into();
     }
     debug_t!(
         "debug.resizing_image",
+        name=image.source_path().file_name().unwrap().to_string_lossy(),
         width = image.width(),
         height = image.height(),
         target_width = horizontal_pixel_max,
         target_height = vertical_pixel_max
     );
-    image.resize(
+    image.to_dynamic_image().resize(
         horizontal_pixel_max,
         vertical_pixel_max,
         FilterType::Lanczos3,

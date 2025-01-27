@@ -149,8 +149,8 @@ impl Args {
     pub fn is_valid(&self) -> bool {
         !self.files.is_empty()
     }
-    pub fn make_parameters(mut self) -> Result<ParametersWithPaths, InvalidInputFileError> {
-        self.save_config();
+    pub fn make_parameters(self) -> Result<ParametersWithPaths, ConfigError> {
+        self.save_config()?;
         let libreoffice_path = self.check_libre();
         let office_good = libreoffice_path.is_some();
         let files = self.get_flat_files(
@@ -188,6 +188,11 @@ impl Args {
         }
         None
     }
+    /// Saves this instance of [`Args`] to the path specified in the [`save_config`] field. Creates all needed directories.
+    ///
+    /// # Errors
+    /// 
+    /// This function will return an error if toml cannot be converted to string, or the current working directory cannot be found (never?).
     fn save_config(&self) -> Result<(), ConfigError> {
         let Some(save_config_path) = &self.save_config else {
             return Ok(());
@@ -205,6 +210,7 @@ impl Args {
         allow_office_docs: bool,
         sort: bool,
     ) -> Result<Vec<Indexed<SourcePath>>, InvalidInputFileError> {
+        
         let q = file_finder::get_files(&self.files, max_depth, allow_office_docs, sort);
         match q {
             v if !v.is_empty() => Ok(v),
@@ -241,8 +247,7 @@ impl Args {
         I: IntoIterator<Item = T> + Debug,
         T: Into<OsString> + Clone,
     {
-        let itera = format!("{:?}", &items);
-        let mut matches = match items {
+        let matches = match items {
             Some(x) => <Self as CommandFactory>::command().get_matches_from(x),
             None => <Self as CommandFactory>::command().get_matches(),
         };

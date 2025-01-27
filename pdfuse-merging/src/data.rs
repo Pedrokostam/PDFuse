@@ -1,5 +1,5 @@
 use pdfuse_sizing::{CustomSize, PageSize, Size};
-use pdfuse_utils::{create_temp_dir, error_t, Indexed};
+use pdfuse_utils::{create_temp_dir, error_t, BusyIndicator, Indexed};
 use printpdf::lopdf::{Bookmark, Document, Object, ObjectId};
 use rayon::prelude::*;
 use size_guide::SizeGuide;
@@ -179,6 +179,7 @@ pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
     if !sources.is_sorted_by_key(|x| x.index()) {
         panic!("Paths are supposed to be sorted already!");
     }
+    let busy = BusyIndicator::new_with_message("Loading files...");
     let branch = SizeGuide::need_to_wait_for_pdf_threads(&sources, parameters);
     let SplitPathsResult(images_to_load, pdfs_to_load, documents_to_pdf) = split_paths(sources);
 
@@ -190,6 +191,7 @@ pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
     let loaded_images: Vec<IndexedPdfResult<Data>> =
         vector_map(images_to_load, preload_image_indexed);
 
+    busy.update("Converting to pdfs...");
     let all_documents_to_merge = match branch {
         size_guide::GuideRequirement::SizeInformationNotNeeded => {
             size_information_not_needed(loaded_images, loaded_pdfs, parameters, conversion_thread)
@@ -201,6 +203,7 @@ pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
             run_in_parallel_with_libre(loaded_images, loaded_pdfs, parameters, conversion_thread)
         }
     };
+    busy.update("Merging pdfs...");
     merge_documents(
         all_documents_to_merge.into_iter().map(|x| x.unwrap()),
         &parameters.output_file,

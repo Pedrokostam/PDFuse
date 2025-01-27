@@ -9,12 +9,15 @@ pub struct LoadedImage{
 }
 impl From<LoadedImage> for DynamicImage {
     fn from(value: LoadedImage) -> Self {
-        value.image
+        value.to_dynamic_image()
     }
 }
 impl LoadedImage {
     pub fn width(&self)->u32{
         self.image.width()
+    }
+    pub fn to_dynamic_image(self) -> DynamicImage{
+        self.image
     }
     pub fn height(&self)->u32{
         self.image.height()

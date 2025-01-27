@@ -28,6 +28,6 @@ unsafe impl Send for ParametersWithPaths{}
 impl ParametersWithPaths{
     pub fn parse()->Result<Self,ConfigError>{
         let a = Args::create()?;
-        a.make_parameters().map_err(|invalid| invalid.into())
+        a.make_parameters()
     }
 }
