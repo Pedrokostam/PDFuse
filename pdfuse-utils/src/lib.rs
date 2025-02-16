@@ -7,7 +7,7 @@ use std::path::PathBuf;
 pub use log;
 pub use indexed::Indexed;
 pub use logger::CONSOLE_LOGGER;
-pub use progress::BusyIndicator;
+pub use progress::{BusyIndicator,get_busy_indicator,get_progress_indicator};
 pub use rust_i18n;
 rust_i18n::i18n!();
 /// Logs translated text (with optional arguments) as info

@@ -16,6 +16,7 @@ walkdir = "2.5.0"
 serde = "1.0.215"
 toml = { version = "0.8.19", features = ["preserve_order"] }
 chrono = "0.4.38"
+indicatif.workspace = true
 
 [package.metadata.i18n]
 available-locales = ["en", "pl"]

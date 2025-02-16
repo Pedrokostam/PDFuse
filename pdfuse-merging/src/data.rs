@@ -1,9 +1,10 @@
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use pdfuse_sizing::{CustomSize, PageSize, Size};
-use pdfuse_utils::{create_temp_dir, error_t, BusyIndicator, Indexed};
+use pdfuse_utils::{create_temp_dir, error_t, get_progress_indicator, BusyIndicator, Indexed};
 use printpdf::lopdf::{Bookmark, Document, Object, ObjectId};
 use rayon::prelude::*;
 use size_guide::SizeGuide;
-use std::{collections::BTreeMap, fmt::Display, path::PathBuf};
+use std::{collections::BTreeMap, fmt::Display, path::PathBuf, time::Duration};
 
 pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
@@ -90,8 +91,9 @@ fn size_information_not_needed(
     loaded_pdfs: Vec<IndexedPdfResult<Data>>,
     parameters: &Parameters,
     optional_thread: OptionalThread,
+    multi_progress:&MultiProgress
 ) -> Vec<IndexedPdfResult<Document>> {
-    run_in_parallel_with_libre(loaded_images, loaded_pdfs, parameters, optional_thread)
+    run_in_parallel_with_libre(loaded_images, loaded_pdfs, parameters, optional_thread,multi_progress)
 }
 /// Images (if any) do not need to rely on libre documents' sizes
 /// It's possible to start conversion while the libre thread is running
@@ -100,18 +102,21 @@ fn run_in_parallel_with_libre(
     loaded_pdfs: Vec<IndexedPdfResult<Data>>,
     parameters: &Parameters,
     optional_thread: OptionalThread,
+    multi_progress:&MultiProgress
 ) -> Vec<IndexedPdfResult<Document>> {
+
     let loaded_images_pdfs: Vec<IndexedPdfResult<Data>> =
         loaded_images.into_iter().chain(loaded_pdfs).collect();
 
     let guide = SizeGuide::new(&loaded_images_pdfs, parameters);
 
     let images_and_pdfs: Vec<Indexed<Result<Document, DocumentLoadError>>> =
-        parallel_documentize(parameters, &guide, loaded_images_pdfs);
+        parallel_documentize(parameters, &guide, loaded_images_pdfs, &multi_progress);
 
     // join the parallel thread now, after converting all images
     let converted_documents = optional_thread.get_converted_data();
-    let loaded_documents = parallel_documentize(parameters, &guide, converted_documents);
+    let loaded_documents =
+        parallel_documentize(parameters, &guide, converted_documents, &multi_progress);
 
     let mut all_items: Vec<IndexedPdfResult<Document>> = images_and_pdfs
         .into_iter()
@@ -128,6 +133,7 @@ fn wait_for_libre(
     loaded_pdfs: Vec<IndexedPdfResult<Data>>,
     parameters: &Parameters,
     optional_thread: OptionalThread,
+    multi_progress:&MultiProgress
 ) -> Vec<IndexedPdfResult<Document>> {
     let loaded_converted_documents: Vec<IndexedPdfResult<Data>> =
         optional_thread.get_converted_data();
@@ -140,7 +146,7 @@ fn wait_for_libre(
 
     let guide = SizeGuide::new(&loaded_all, parameters);
 
-    let mut all_items = parallel_documentize(parameters, &guide, loaded_all);
+    let mut all_items = parallel_documentize(parameters, &guide, loaded_all, multi_progress);
     all_items.sort_by_key(|x| x.index());
     all_items
 }
@@ -149,7 +155,10 @@ fn parallel_documentize(
     parameters: &Parameters,
     guide: &SizeGuide,
     loaded_all: Vec<Indexed<Result<Data, DocumentLoadError>>>,
+    multi_progress: &MultiProgress,
 ) -> Vec<Indexed<Result<Document, DocumentLoadError>>> {
+    let bar = multi_progress
+        .add(get_progress_indicator(loaded_all.len() as u64,"Converting images and PDFs"));
     loaded_all
         .into_par_iter()
         .map(|loaded| {
@@ -172,6 +181,7 @@ fn parallel_documentize(
             };
             Indexed::new(index, value)
         })
+        .inspect(|_| bar.inc(1))
         .collect()
 }
 
@@ -179,11 +189,12 @@ pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
     if !sources.is_sorted_by_key(|x| x.index()) {
         panic!("Paths are supposed to be sorted already!");
     }
-    let busy = BusyIndicator::new_with_message("Loading files...");
+    let parent_bar = MultiProgress::new();
+    // let busy = BusyIndicator::new_with_message("Loading files...");
     let branch = SizeGuide::need_to_wait_for_pdf_threads(&sources, parameters);
     let SplitPathsResult(images_to_load, pdfs_to_load, documents_to_pdf) = split_paths(sources);
 
-    let conversion_thread = OptionalThread::create(documents_to_pdf, parameters);
+    let conversion_thread = OptionalThread::create(documents_to_pdf, parameters, parent_bar.clone());
     // load all PDFs as Data - limited only by disk IO
     let loaded_pdfs = vector_map(pdfs_to_load, preload_pdf_indexed);
 
@@ -191,19 +202,18 @@ pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
     let loaded_images: Vec<IndexedPdfResult<Data>> =
         vector_map(images_to_load, preload_image_indexed);
 
-    busy.update("Converting to pdfs...");
+    // drop(busy);
     let all_documents_to_merge = match branch {
         size_guide::GuideRequirement::SizeInformationNotNeeded => {
-            size_information_not_needed(loaded_images, loaded_pdfs, parameters, conversion_thread)
+            size_information_not_needed(loaded_images, loaded_pdfs, parameters, conversion_thread,&parent_bar)
         }
         size_guide::GuideRequirement::WaitForLibreConversion => {
-            wait_for_libre(loaded_images, loaded_pdfs, parameters, conversion_thread)
+            wait_for_libre(loaded_images, loaded_pdfs, parameters, conversion_thread,&parent_bar)
         }
         size_guide::GuideRequirement::RunInParallelWithLibreConversion => {
-            run_in_parallel_with_libre(loaded_images, loaded_pdfs, parameters, conversion_thread)
+            run_in_parallel_with_libre(loaded_images, loaded_pdfs, parameters, conversion_thread,&parent_bar)
         }
     };
-    busy.update("Merging pdfs...");
     merge_documents(
         all_documents_to_merge.into_iter().map(|x| x.unwrap()),
         &parameters.output_file,

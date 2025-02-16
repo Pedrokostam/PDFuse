@@ -1,25 +1,31 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, thread::JoinHandle};
 
+use indicatif::{MultiProgress, ProgressBar};
 use pdfuse_parameters::Parameters;
-use pdfuse_utils::{create_temp_dir, Indexed};
+use pdfuse_utils::{create_temp_dir, get_progress_indicator, Indexed};
 
 use crate::DocumentLoadError;
 
 use super::{loaded_document, preload_pdf, Data, PdfResult};
 
-pub enum OptionalThread {
-    NoOp,
-    Thread(std::thread::JoinHandle<Vec<Indexed<Result<Data, DocumentLoadError>>>>),
+pub struct ProgressJoinHandle {
+    handle: JoinHandle<Vec<Indexed<Result<Data, DocumentLoadError>>>>,
 }
 
-impl OptionalThread {
-    pub fn create(document_paths: Vec<Indexed<PathBuf>>, parameters: &Parameters) -> Self {
-        if document_paths.is_empty() {
-            return Self::NoOp;
-        }
+impl ProgressJoinHandle {
+    pub fn new(
+        document_paths: Vec<Indexed<PathBuf>>,
+        parameters: &Parameters,
+        parent_bar: MultiProgress,
+    ) -> Self {
         let parameters = parameters.clone();
+        let progress_bar = get_progress_indicator(
+            document_paths.len() as u64,
+            "Converting documents to PDF...",
+        );
+        parent_bar.add(progress_bar.clone());
         let handle = std::thread::spawn(move || {
-            let paths = convert_data_to_documents(document_paths, &parameters);
+            let paths = convert_data_to_documents(document_paths, &parameters, progress_bar);
             let output: Vec<Indexed<PdfResult<Data>>> = paths
                 .into_iter()
                 .map(|indexed| {
@@ -31,7 +37,28 @@ impl OptionalThread {
                 .collect();
             output
         });
-        Self::Thread(handle)
+
+        ProgressJoinHandle { handle }
+    }
+
+    pub fn join(
+        self,
+    ) -> Result<Vec<Indexed<Result<Data, DocumentLoadError>>>, Box<dyn std::any::Any + Send>> {
+        self.handle.join()
+    }
+}
+
+pub enum OptionalThread {
+    NoOp,
+    Thread(ProgressJoinHandle),
+}
+
+impl OptionalThread {
+    pub fn create(document_paths: Vec<Indexed<PathBuf>>, parameters: &Parameters,parent_bar:MultiProgress) -> Self {
+        if document_paths.is_empty() {
+            return Self::NoOp;
+        }
+        Self::Thread(ProgressJoinHandle::new(document_paths, parameters, parent_bar))
     }
     pub fn get_converted_data(self) -> Vec<Indexed<Result<Data, DocumentLoadError>>> {
         match self {
@@ -46,6 +73,7 @@ impl OptionalThread {
 fn convert_data_to_documents(
     document_paths: Vec<Indexed<PathBuf>>,
     parameters: &Parameters,
+    progress_bar: ProgressBar,
 ) -> Vec<Indexed<PdfResult<PathBuf>>> {
     if parameters.libreoffice_path.is_none() {
         return vec![];
@@ -60,5 +88,6 @@ fn convert_data_to_documents(
                     .map_err(Into::into)
             })
         })
+        .inspect(|_| progress_bar.inc(1))
         .collect()
 }

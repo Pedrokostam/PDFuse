@@ -8,6 +8,7 @@ image = "0.25.5"
 pdfuse-sizing = { path = "../pdfuse-sizing" }
 pdfuse-utils = { path = "../pdfuse-utils" }
 pdfuse-parameters = { path = "../pdfuse-parameters" }
+indicatif.workspace = true
 printpdf = "0.7.0"
 rust-i18n.workspace = true
 dashmap = "6.1.0"
