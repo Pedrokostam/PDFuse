@@ -30,15 +30,15 @@ impl From<std::io::Error> for LibreConversionError {
 pub enum DocumentLoadError {
     Io(std::io::Error),
     LibreConversion(LibreConversionError),
-    InvalidFile(printpdf::lopdf::Error),
+    InvalidFile(lopdf::Error),
 }
 impl From<LibreConversionError> for DocumentLoadError {
     fn from(value: LibreConversionError) -> Self {
         Self::LibreConversion(value)
     }
 }
-impl From<printpdf::lopdf::Error> for DocumentLoadError {
-    fn from(value: printpdf::lopdf::Error) -> Self {
+impl From<lopdf::Error> for DocumentLoadError {
+    fn from(value: lopdf::Error) -> Self {
         Self::InvalidFile(value)
     }
 }

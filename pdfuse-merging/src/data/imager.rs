@@ -1,24 +1,37 @@
 use image::{imageops::FilterType, DynamicImage};
-use pdfuse_sizing::{CustomSize, Length, Size};
-use pdfuse_utils::debug_t;
-use printpdf::{
-    lopdf::Document, Image, ImageTransform, ImageXObject, PdfDocumentReference, PdfLayerReference,
-    Px,
+use lopdf::Document;
+use pdfuse_sizing::{CustomSize, Length, Size, Unit};
+use pdfuse_utils::{
+    debug_t,
+    log::{self, logger},
 };
+// use lopdf::Document, Image, ImageTransform, ImageXObject, PdfDocumentReference, PdfLayerReference,
+use printpdf::{ImageOptimizationOptions, Layer, PdfDocument,PdfPage};
+use printpdf::{PdfSaveOptions, PdfWarnMsg, RawImage};
+use  printpdf::units::{Pt,Mm};
 
 use super::LoadedImage;
 
 pub struct Imager {
-    pub(crate) document: PdfDocumentReference,
+    pub(crate) document: PdfDocument,
     pub(crate) page_size: CustomSize,
     pub(crate) dpi: f64,
     pub(crate) margin: CustomSize,
-    page_count: usize,
+    pub(crate) pages: Vec<PdfPage>,
 }
 impl Imager {
-    pub fn close_and_into_document(self) -> Document {
+    pub fn close_and_into_document(mut self) -> Document {
         // unsafe { self.document.get_inner() }
-        let bytes = self.document.save_to_bytes().unwrap();
+        let save_options = PdfSaveOptions {
+            optimize: true,
+            subset_fonts: true,
+            secure: true,
+            image_optimization: Some(ImageOptimizationOptions {
+                ..Default::default()
+            }),
+        };
+        let mut warnings: Vec<PdfWarnMsg> = vec![];
+        let bytes = self.document.with_pages(self.pages).save(&save_options, &mut warnings);
         Document::load_mem(&bytes).unwrap()
     }
     pub fn new<FloatLike, PageLike>(
@@ -32,26 +45,25 @@ impl Imager {
         PageLike: Into<CustomSize>,
     {
         Imager {
-            document: printpdf::PdfDocument::empty(title)
-                .with_conformance(printpdf::PdfConformance::A2_2011_PDF_1_7),
+            document: printpdf::PdfDocument::new(title),
             page_size: page_size.into(),
             dpi: dpi.into(),
             margin,
-            page_count: 0,
+            pages: vec![],
         }
     }
 
-    fn add_page_for_image(&mut self) -> PdfLayerReference {
-        let (page_index, layer_index) = self.document.add_page(
-            self.page_size.horizontal.into(),
-            self.page_size.vertical.into(),
-            "Image",
-        );
-        self.document.get_page(page_index).get_layer(layer_index)
-    }
+    // fn add_page_for_image(&mut self) -> Layer {
+    //     let pp =  PdfPage::new(
+    //         self.page_size.horizontal.into(),
+    //         self.page_size.vertical.into(),
+    //         vec![]);
+    //     self.document.pages.push( pp);
+    //     self.document.pages.last().unwrap().get_layers()[0]
+    // }
 
     pub fn page_count(&self) -> usize {
-        self.page_count
+        self.pages.len()
     }
 
     pub fn add_image(&mut self, image: LoadedImage) {
@@ -59,38 +71,35 @@ impl Imager {
         let decoded_image = image.into();
         let page_with_margins = page_size - self.margin;
 
-        let adjusted_image = adjust_to_dpi(decoded_image, page_with_margins, self.dpi);
+        let mut adjusted_image = adjust_to_dpi(decoded_image, page_with_margins, self.dpi);
 
         let image_size = get_image_size(&adjusted_image, self.dpi);
-
-        let pdf_image: ImageXObject = printpdf::ImageXObject {
-            width: Px(adjusted_image.width() as usize),
-            height: Px(adjusted_image.height() as usize),
-            color_space: printpdf::ColorSpace::Rgb,
-            bits_per_component: printpdf::ColorBits::Bit8,
-            interpolate: true,
-            image_data: adjusted_image.to_rgb8().into_vec(),
-            image_filter: None,
-            smask: None,
-            clipping_bbox: None,
-        };
-        let current_layer = self.add_page_for_image();
-
+        let mut warnings: Vec<PdfWarnMsg> = vec![];
+        let warned_image =
+            RawImage::decode_from_bytes(adjusted_image.as_mut_rgb8().unwrap(), &mut warnings);
+        let pdf_image: RawImage;
+        match warned_image {
+            Ok(iw) => pdf_image = iw,
+            Err(e) => {
+                log::error!("{e}");
+                return;
+            }
+        }
+        let image_id =self.document.add_image(&pdf_image);
         let scale = page_with_margins.fit_size(&image_size);
         let translation = get_image_translation(page_size, image_size * scale, self.margin);
-
-        // scaling -> rotation -> translation
-        let transform = ImageTransform {
+        let image_contents = vec![
+            printpdf::Op::UseXobject { id: image_id, transform:printpdf::XObjectTransform {
             scale_x: Some(scale as f32),
             scale_y: Some(scale as f32),
             dpi: Some(self.dpi as f32),
             translate_x: Some(translation.horizontal.into()),
             translate_y: Some(translation.vertical.into()),
             rotate: None,
-        };
-        let image_to_add: Image = pdf_image.into();
-        image_to_add.add_to_layer(current_layer, transform);
-        self.page_count += 1;
+        } }
+        ];
+        let page = PdfPage::new(page_size.horizontal.into(), page_size.vertical.into(), image_contents);
+        self.pages.push(page);
     }
 }
 
@@ -104,7 +113,7 @@ fn adjust_to_dpi(image: LoadedImage, draw_area: CustomSize, dpi: f64) -> Dynamic
     }
     debug_t!(
         "debug.resizing_image",
-        name=image.source_path().file_name().unwrap().to_string_lossy(),
+        name = image.source_path().file_name().unwrap().to_string_lossy(),
         width = image.width(),
         height = image.height(),
         target_width = horizontal_pixel_max,

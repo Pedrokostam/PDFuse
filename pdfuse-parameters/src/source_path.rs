@@ -103,7 +103,7 @@ impl SourcePath {
     }
 }
 
-fn display_path(path: impl AsRef<Path>) -> String {
+pub fn display_path(path: impl AsRef<Path>) -> String {
     path.as_ref()
         .to_string_lossy()
         .trim_start_matches(r"\\?\")

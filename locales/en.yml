@@ -22,3 +22,6 @@ error:
   image_loading: 'Error while loading image %{path}.'
   invalid_mediabox: 'Could not read media box of any page of %{document}.'
   not_supported: 'The following immediate file has unsupported type: %{path}'
+  no_valid_files: 'No valid files detected in the input paths'
+  invalid_config_path: 'Malformed file path : %{path}'
+  missing_config_file: 'No configuration file at the given path : %{path}'

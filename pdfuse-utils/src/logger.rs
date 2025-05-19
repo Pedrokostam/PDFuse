@@ -13,8 +13,8 @@ enum Message {
 impl Display for Message {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Message::Raw(s) => write!(f, "{}", s),
-            Message::Colored(colored_string) => write!(f, "{}", colored_string),
+            Message::Raw(s) => write!(f, "{s}"),
+            Message::Colored(colored_string) => write!(f, "{colored_string}"),
         }
     }
 }
@@ -44,7 +44,7 @@ impl log::Log for ConsoleLogger {
                 Level::Debug => s.purple().into(),
                 Level::Trace => s.cyan().into(),
             };
-            println!("{}", colored);
+            println!("{colored}");
         }
     }
     fn flush(&self) {}

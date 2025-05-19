@@ -8,7 +8,13 @@ fn main() {
     #[cfg(not(debug_assertions))]
     log::set_max_level(log::LevelFilter::Info);
     let start_time = std::time::Instant::now();
-    let parameters =pdfuse_parameters::ParametersWithPaths::parse().unwrap();
+    let parameters = match pdfuse_parameters::ParametersWithPaths::parse() {
+        Ok(p) => p,
+        Err(e) => {
+            print!("{e}");
+            std::process::exit(1);
+        }
+    };
     pdfuse_merging::load(parameters.files.to_owned(), &parameters.parameters);
     let end_time = std::time::Instant::now();
     info_t!("time_taken",duration_seconds=(end_time-start_time).as_secs_f32()); 

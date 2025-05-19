@@ -1,5 +1,5 @@
 use crate::{
-    errors::{ConfigError, InvalidInputFileError},
+    errors::{ConfigError, MalformedPathError, NoValidFilesError},
     file_finder,
     parameters::{Parameters, ParametersWithPaths},
     paths::{self, expand_path},
@@ -16,7 +16,7 @@ use std::{
     env,
     ffi::OsString,
     fmt::Debug,
-    fs, 
+    fs,
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -56,6 +56,7 @@ macro_rules! hack {
         }
     }};
 }
+/// Use the value for the field from the default implementation
 macro_rules! def {
     ($field:ident) => {
         Args::default().$field
@@ -191,7 +192,7 @@ impl Args {
     /// Saves this instance of [`Args`] to the path specified in the [`save_config`] field. Creates all needed directories.
     ///
     /// # Errors
-    /// 
+    ///
     /// This function will return an error if toml cannot be converted to string, or the current working directory cannot be found (never?).
     fn save_config(&self) -> Result<(), ConfigError> {
         let Some(save_config_path) = &self.save_config else {
@@ -209,12 +210,11 @@ impl Args {
         max_depth: usize,
         allow_office_docs: bool,
         sort: bool,
-    ) -> Result<Vec<Indexed<SourcePath>>, InvalidInputFileError> {
-        
+    ) -> Result<Vec<Indexed<SourcePath>>, ConfigError> {
         let q = file_finder::get_files(&self.files, max_depth, allow_office_docs, sort);
         match q {
             v if !v.is_empty() => Ok(v),
-            _ => Err(InvalidInputFileError {}),
+            _ => Err(ConfigError::NoValidFiles),
         }
     }
 
@@ -242,6 +242,12 @@ impl Args {
         let contents = fs::read_to_string(path)?;
         Ok(toml::from_str::<Args>(&contents)?)
     }
+
+    /// Creates new Args from the parameters given to the app (when items are None) or from the given items.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     fn create_from<I, T>(items: Option<I>) -> Result<Self, ConfigError>
     where
         I: IntoIterator<Item = T> + Debug,
@@ -268,40 +274,37 @@ impl Args {
                 e.exit();
             }
         };
-        let expanded_config_path_opt = expand_path(
-            &args
-                .config
-                .as_ref()
-                .unwrap_or(&DEFAULT_CONFIG_PATH.to_owned())
-                .to_owned(),
-        );
-        // res.save_config=Some("config.toml".to_owned());
-        // res.save_config();
-        let config_path = match &expanded_config_path_opt {
-            Some(s) => Path::new(s),
-            None => return Ok(args),
-        };
+        let is_default_config = args.config.is_none();
+        let config_path_property = &args.config.as_deref().unwrap_or(DEFAULT_CONFIG_PATH);
+        // Get expanded path
+        let expanded_config_path = expand_path(config_path_property)
+            .ok_or_else(|| ConfigError::MalformedPath(config_path_property.to_string()))?;
+        let config_path = Path::new(&expanded_config_path);
+        // No config to load, can return already
         if !config_path.exists() {
-            return Ok(args);
+            if is_default_config {
+                return Ok(args);
+            } else {
+                Err(ConfigError::MissingConfigError(expanded_config_path.to_owned()))?
+            }
         }
-        let Some(loaded) = fs::read_to_string(config_path)
-            .ok()
-            .and_then(|s| toml::from_str::<Args>(&s).ok())
-        else {
-            return Ok(args);
-        };
-        hack!(mut args, loaded, confirm_exit, matches); //: false,
-        hack!(mut args, loaded, quiet, matches); //: false,
-        hack!(mut args, loaded, what_if, matches); //: false,
-        hack!(mut args, loaded, language, matches); //: None,
-        hack!(mut args, loaded, recursion_limit, matches); //: 4,
-        hack!(mut args, loaded, image_page_fallback_size, matches); //: IsoPaper::a(4).into(),
-        hack!(mut args, loaded, dpi, matches); //: 300,
-        hack!(mut args, loaded, margin, matches); //: CustomSize::zero(),
-        hack!(mut args, loaded, force_image_page_fallback_size, matches); //: false,
-        hack!(mut args, loaded, alphabetic_file_sorting, matches); //: false,
-        hack!(mut args, loaded, libreoffice_path, matches); //: get_default_libre(),
-        hack!(mut args, loaded, output_directory, matches); //: ".".to_owned(),
+        // Try to read the config file. Exit on fail.
+        let loaded_config_text =  fs::read_to_string(config_path)?;
+        let loaded_config = toml::from_str::<Args>(&loaded_config_text)?;
+     
+        hack!(mut args, loaded_config, confirm_exit, matches); //: false,
+        hack!(mut args, loaded_config, quiet, matches); //: false,
+        hack!(mut args, loaded_config, what_if, matches); //: false,
+        hack!(mut args, loaded_config, language, matches); //: None,
+        hack!(mut args, loaded_config, recursion_limit, matches); //: 4,
+        hack!(mut args, loaded_config, image_page_fallback_size, matches); //: IsoPaper::a(4).into(),
+        hack!(mut args, loaded_config, dpi, matches); //: 300,
+        hack!(mut args, loaded_config, margin, matches); //: CustomSize::zero(),
+        hack!(mut args, loaded_config, force_image_page_fallback_size, matches); //: false,
+        hack!(mut args, loaded_config, alphabetic_file_sorting, matches); //: false,
+        hack!(mut args, loaded_config, libreoffice_path, matches); //: get_default_libre(),
+        hack!(mut args, loaded_config, output_directory, matches); //: ".".to_owned(),
+        
         Ok(args)
     }
 
