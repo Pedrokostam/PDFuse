@@ -122,7 +122,7 @@ fn recurse_folder(
         .filter_map(|d| SourcePath::try_from(d).ok())
         .inspect(|_| {
             count += 1;
-            busy_indicator.set_message(format!("Found {} files", count));
+            busy_indicator.set_message(format!("Found {count} files"));
         });
     output.extend(enumerable);
 }

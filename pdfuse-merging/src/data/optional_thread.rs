@@ -41,12 +41,14 @@ impl ProgressJoinHandle {
         ProgressJoinHandle { handle }
     }
 
+    
     pub fn join(
         self,
-    ) -> Result<Vec<Indexed<Result<Data, DocumentLoadError>>>, Box<dyn std::any::Any + Send>> {
+    ) -> Result<IndexedResults, Box<dyn std::any::Any + Send>> {
         self.handle.join()
     }
 }
+type IndexedResults = Vec<Indexed<Result<Data, DocumentLoadError>>>;
 
 pub enum OptionalThread {
     NoOp,

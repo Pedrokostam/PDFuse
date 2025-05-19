@@ -14,6 +14,7 @@ fn get_changed_args() -> Args {
         recursion_limit: 17,
         image_page_fallback_size: IsoPaper::c(10).into(),
         dpi: 1337,
+        quality:13,
         margin: CustomSize::from_inches(0.5, 0.5),
         force_image_page_fallback_size: !def.force_image_page_fallback_size,
         alphabetic_file_sorting: !def.alphabetic_file_sorting,
@@ -45,7 +46,6 @@ impl Display for Diff {
 
 macro_rules! changes {
     ($a:expr,$b:expr,$($item:ident),* $(,)?) =>{ {
-        let ph = "NONE".to_owned();
         let mut a:Vec<Diff> = vec![
         ];
         $(

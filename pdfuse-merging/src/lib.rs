@@ -4,6 +4,7 @@
 //         assert_eq!(result, 4);
 //     }
 // }
+#![feature(inherent_associated_types)]
 mod data;
 mod error;
 pub use data::load;

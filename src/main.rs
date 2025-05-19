@@ -6,7 +6,7 @@ fn main() {
     #[cfg(debug_assertions)]
     log::set_max_level(log::LevelFilter::Trace);
     #[cfg(not(debug_assertions))]
-    log::set_max_level(log::LevelFilter::Info);
+    log::set_max_level(log::LevelFilter::Trace);
     let start_time = std::time::Instant::now();
     let parameters = match pdfuse_parameters::ParametersWithPaths::parse() {
         Ok(p) => p,

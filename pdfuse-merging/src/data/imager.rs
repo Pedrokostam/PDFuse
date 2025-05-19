@@ -1,16 +1,67 @@
-use image::{imageops::FilterType, DynamicImage};
+use std::{
+    any::{type_name, type_name_of_val},
+    cmp::min,
+};
+
+use image::{imageops::FilterType, DynamicImage, GenericImageView};
 use lopdf::Document;
 use pdfuse_sizing::{CustomSize, Length, Size, Unit};
 use pdfuse_utils::{
     debug_t,
-    log::{self, logger},
+    log::{self, debug, logger},
 };
 // use lopdf::Document, Image, ImageTransform, ImageXObject, PdfDocumentReference, PdfLayerReference,
-use printpdf::{ImageOptimizationOptions, Layer, PdfDocument,PdfPage};
+use printpdf::{
+    units::{Mm, Pt},
+    ImageCompression,
+};
+use printpdf::{
+    ImageOptimizationOptions, Layer, PdfDocument, PdfPage, RawImageData, RawImageFormat,
+};
 use printpdf::{PdfSaveOptions, PdfWarnMsg, RawImage};
-use  printpdf::units::{Pt,Mm};
+
+use crate::error::ImageLoadError;
 
 use super::LoadedImage;
+
+fn dynamic_to_pdf(image: DynamicImage) -> Result<RawImage, ImageLoadError> {
+    let width = image.width() as usize;
+    let height = image.height() as usize;
+    let data_format = match image.color() {
+        image::ColorType::L8 => Ok(RawImageFormat::R8),
+        image::ColorType::La8 => Ok(RawImageFormat::RG8),
+        image::ColorType::Rgb8 => Ok(RawImageFormat::RGB8),
+        image::ColorType::Rgba8 => Ok(RawImageFormat::RGBA8),
+        image::ColorType::L16 => Ok(RawImageFormat::R16),
+        image::ColorType::La16 => Ok(RawImageFormat::RG16),
+        image::ColorType::Rgb16 => Ok(RawImageFormat::RGB16),
+        image::ColorType::Rgba16 => Ok(RawImageFormat::RGBA16),
+        image::ColorType::Rgb32F => Ok(RawImageFormat::RGBF32),
+        image::ColorType::Rgba32F => Ok(RawImageFormat::RGBAF32),
+        _ => Err(ImageLoadError::UnknownFormat),
+    }?;
+    let pixels = match image {
+        DynamicImage::ImageLuma8(imbuffer) => Ok(RawImageData::U8(imbuffer.into_raw())),
+        DynamicImage::ImageLumaA8(imbuffer) => Ok(RawImageData::U8(imbuffer.into_raw())),
+        DynamicImage::ImageRgb8(imbuffer) => Ok(RawImageData::U8(imbuffer.into_raw())),
+        DynamicImage::ImageRgba8(imbuffer) => Ok(RawImageData::U8(imbuffer.into_raw())),
+        DynamicImage::ImageLuma16(imbuffer) => Ok(RawImageData::U16(imbuffer.into_raw())),
+        DynamicImage::ImageLumaA16(imbuffer) => Ok(RawImageData::U16(imbuffer.into_raw())),
+        DynamicImage::ImageRgb16(imbuffer) => Ok(RawImageData::U16(imbuffer.into_raw())),
+        DynamicImage::ImageRgba16(imbuffer) => Ok(RawImageData::U16(imbuffer.into_raw())),
+        DynamicImage::ImageRgb32F(imbuffer) => Ok(RawImageData::F32(imbuffer.into_raw())),
+        DynamicImage::ImageRgba32F(imbuffer) => Ok(RawImageData::F32(imbuffer.into_raw())),
+        _ => Err(ImageLoadError::UnknownPixelType),
+    }?;
+    debug!("Data format: {data_format:?}");
+    Ok(RawImage {
+        width,
+        height,
+        data_format,
+        pixels,
+        tag: vec![],
+    })
+}
 
 pub struct Imager {
     pub(crate) document: PdfDocument,
@@ -18,6 +69,8 @@ pub struct Imager {
     pub(crate) dpi: f64,
     pub(crate) margin: CustomSize,
     pub(crate) pages: Vec<PdfPage>,
+    pub(crate) quality: u8,
+    pub(crate) lossless: bool,
 }
 impl Imager {
     pub fn close_and_into_document(mut self) -> Document {
@@ -27,11 +80,36 @@ impl Imager {
             subset_fonts: true,
             secure: true,
             image_optimization: Some(ImageOptimizationOptions {
+                quality: Some(self.quality as f32 / 100.0),
+                max_image_size: Some("2137gb".to_string()), // "arbitrarily" large size -> we resize the image by ourselves
+                format:  match self.lossless{
+                    true =>Some(ImageCompression::Flate),
+                    false => Some(ImageCompression::Jpeg),
+                },
                 ..Default::default()
             }),
         };
+        /*
+        Regarding SaveOptions (for printpdf 0.8.2):
+        - format
+            Jpeg|Jpeg2000 -> DCTDecode
+            Auto (color) -> DCTDeoced
+            Auto (gray) -> FlateDecode
+            AllElse -> FlateDecode
+
+            Alpha is encoded separately (usually flate) and applied as a mask
+        - quality
+            Only DCTDecode uses quality (which should be (0,1> as it is multiplied by 100 in crate)
+
+        - max_image_size
+            If uncompressed(!) image would exceed the size, scale it down
+
+         */
         let mut warnings: Vec<PdfWarnMsg> = vec![];
-        let bytes = self.document.with_pages(self.pages).save(&save_options, &mut warnings);
+        let bytes = self
+            .document
+            .with_pages(self.pages)
+            .save(&save_options, &mut warnings);
         Document::load_mem(&bytes).unwrap()
     }
     pub fn new<FloatLike, PageLike>(
@@ -39,6 +117,8 @@ impl Imager {
         page_size: PageLike,
         dpi: FloatLike,
         margin: CustomSize,
+        quality: u8,
+        lossless: bool,
     ) -> Self
     where
         FloatLike: Into<f64>,
@@ -50,6 +130,8 @@ impl Imager {
             dpi: dpi.into(),
             margin,
             pages: vec![],
+            quality,
+            lossless,
         }
     }
 
@@ -66,47 +148,59 @@ impl Imager {
         self.pages.len()
     }
 
-    pub fn add_image(&mut self, image: LoadedImage) {
+    pub fn add_image(&mut self, image: LoadedImage) -> Result<(), ImageLoadError> {
         let page_size = self.page_size;
-        let decoded_image = image.into();
         let page_with_margins = page_size - self.margin;
 
-        let mut adjusted_image = adjust_to_dpi(decoded_image, page_with_margins, self.dpi);
+        let adjusted_image = adjust_to_dpi(image, page_with_margins, self.dpi);
 
         let image_size = get_image_size(&adjusted_image, self.dpi);
-        let mut warnings: Vec<PdfWarnMsg> = vec![];
-        let warned_image =
-            RawImage::decode_from_bytes(adjusted_image.as_mut_rgb8().unwrap(), &mut warnings);
-        let pdf_image: RawImage;
-        match warned_image {
-            Ok(iw) => pdf_image = iw,
-            Err(e) => {
-                log::error!("{e}");
-                return;
-            }
-        }
-        let image_id =self.document.add_image(&pdf_image);
+
+        let pdf_image = dynamic_to_pdf(adjusted_image)?;
+        // let warned_image =
+        //     RawImage::decode_from_bytes(&adjusted_image.(), &mut warnings);
+
+        // let pdf_image: RawImage = match warned_image {
+        //     Ok(iw) => iw,
+        //     Err(e) => {
+        //         log::error!("{e}");
+        //         return;
+        //     }
+        // };
+        let image_id = self.document.add_image(&pdf_image);
         let scale = page_with_margins.fit_size(&image_size);
         let translation = get_image_translation(page_size, image_size * scale, self.margin);
-        let image_contents = vec![
-            printpdf::Op::UseXobject { id: image_id, transform:printpdf::XObjectTransform {
-            scale_x: Some(scale as f32),
-            scale_y: Some(scale as f32),
-            dpi: Some(self.dpi as f32),
-            translate_x: Some(translation.horizontal.into()),
-            translate_y: Some(translation.vertical.into()),
-            rotate: None,
-        } }
-        ];
-        let page = PdfPage::new(page_size.horizontal.into(), page_size.vertical.into(), image_contents);
+        debug!("{scale}");
+        let image_contents = printpdf::Op::UseXobject {
+            id: image_id,
+            transform: printpdf::XObjectTransform {
+                scale_x: Some(scale as f32),
+                scale_y: Some(scale as f32),
+                dpi: Some(self.dpi as f32),
+                translate_x: Some(translation.horizontal.into()),
+                translate_y: Some(translation.vertical.into()),
+                rotate: None,
+            },
+        };
+        let page = PdfPage::new(
+            page_size.horizontal.into(),
+            page_size.vertical.into(),
+            vec![image_contents],
+        );
         self.pages.push(page);
+        Ok(())
     }
 }
 
 fn adjust_to_dpi(image: LoadedImage, draw_area: CustomSize, dpi: f64) -> DynamicImage {
-    let horizontal_pixel_max = (draw_area.horizontal.inch() * dpi) as u32;
-    let vertical_pixel_max = (draw_area.vertical.inch() * dpi) as u32;
-    if horizontal_pixel_max > image.width() || vertical_pixel_max > image.height() {
+    let horizontal_pixel_max = draw_area.horizontal.inch() * dpi;
+    let vertical_pixel_max = draw_area.vertical.inch() * dpi;
+    let image_width = image.width() as f64;
+    let image_height = image.height() as f64;
+    let scale_x = horizontal_pixel_max / image_width;
+    let scale_y = vertical_pixel_max / image_height;
+    let scale = scale_x.min(scale_y);
+    if scale >= 1.0 {
         let target_dpi = (image.width() as f64 / draw_area.horizontal.inch()) as u32;
         debug_t!("debug.excess_dpi", dpi = target_dpi);
         return image.into();
@@ -116,12 +210,13 @@ fn adjust_to_dpi(image: LoadedImage, draw_area: CustomSize, dpi: f64) -> Dynamic
         name = image.source_path().file_name().unwrap().to_string_lossy(),
         width = image.width(),
         height = image.height(),
-        target_width = horizontal_pixel_max,
-        target_height = vertical_pixel_max
+        target_width = horizontal_pixel_max as u32,
+        target_height = vertical_pixel_max as u32,
+        scale = scale
     );
     image.to_dynamic_image().resize(
-        horizontal_pixel_max,
-        vertical_pixel_max,
+        horizontal_pixel_max as u32,
+        vertical_pixel_max as u32,
         FilterType::Lanczos3,
     )
 }

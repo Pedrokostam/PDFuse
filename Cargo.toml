@@ -11,6 +11,17 @@ members = [
 log = "0.4.27"
 indicatif = "0.17.11"
 rust-i18n = "3.1.4"
+printpdf = { version = "0.8.2", features = [
+    "bmp",
+    "gif",
+    "jpeg",
+    "png",
+    "pnm",
+    "tga",
+    "tiff",
+    "webp",
+    "ico",
+] }
 
 [workspace.lints.clippy]
 
@@ -30,7 +41,7 @@ lopdf = "0.36.0"
 once_cell = "1.21.3"
 rust-i18n.workspace = true
 walkdir = "2.5.0"
-printpdf = "0.8.2"
+printpdf = { workspace = true }
 image = "0.25.6"
 dashmap = "6.1.0"
 rayon = "1.10.0"
@@ -52,7 +63,7 @@ serde_json = "1.0.140"
 # log = "0.4.22"
 # lopdf = "0.31.0"
 # once_cell = "1.20.2"
-# printpdf = { version = "0.7.0", features = [] }
+# printpdf = {workspace = true}
 # rayon = "1.10.0"
 # regex = "1.11.1"
 # rust-i18n = "3.1.2"

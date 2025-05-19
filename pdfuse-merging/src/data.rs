@@ -1,7 +1,7 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use lopdf::{Bookmark, Document, Object, ObjectId};
 use pdfuse_sizing::{CustomSize, PageSize, Size};
-use pdfuse_utils::{create_temp_dir, error_t, get_progress_indicator, BusyIndicator, Indexed};
+use pdfuse_utils::{create_temp_dir, error_t, get_progress_indicator, log, BusyIndicator, Indexed};
 use rayon::prelude::*;
 use size_guide::SizeGuide;
 use std::{collections::BTreeMap, fmt::Display, path::PathBuf, time::Duration};
@@ -10,8 +10,7 @@ pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
 pub use loaded_image::LoadedImage;
 use pdfuse_parameters::{
-    Parameters,
-    SourcePath::{self, Image, LibreDocument, Pdf},
+    source_path::display_path, Parameters, SourcePath::{self, Image, LibreDocument, Pdf}
 };
 
 use crate::DocumentLoadError;
@@ -176,10 +175,16 @@ fn parallel_documentize(
                         let mut imager = Imager::new(
                             "title",
                             guide.get_size(index),
-                            parameters.dpi,
+                            parameters.image_dpi,
                             parameters.margin,
+                            parameters.image_quality,
+                            parameters.image_lossless_compression,
                         );
-                        imager.add_image(loaded_image);
+                        let path = display_path(loaded_image.source_path());
+                        match imager.add_image(loaded_image){
+                            Ok(_) => (),
+                            Err(e) => log::error!("{e} - {path}"),
+                        }
                         Ok(imager.close_and_into_document())
                     }
                     Data::Document(loaded_document) => Ok(loaded_document.into()),
@@ -249,9 +254,7 @@ fn preload_pdf_indexed(path: Indexed<PathBuf>) -> Indexed<PdfResult<Data>> {
     path.map_with_index(preload_pdf)
 }
 fn preload_pdf(path: PathBuf) -> PdfResult<Data> {
-    LoadedDocument::load_pdf(&path)
-        .map(Into::into)
-        .map_err(Into::into)
+    LoadedDocument::load_pdf(&path).map(LoadedDocument::into)
 }
 
 pub fn merge_documents<T>(documents: T, output_path: &str)
@@ -283,7 +286,7 @@ where
                 .map(|object_id| {
                     if !first {
                         let bookmark = Bookmark::new(
-                            format!("Page_{}", pagenum),
+                            format!("Page_{pagenum}"),
                             [0.0, 0.0, 1.0],
                             0,
                             object_id,

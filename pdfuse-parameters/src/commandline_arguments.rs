@@ -114,6 +114,14 @@ pub struct Args {
     #[arg(long, default_value_t = def!(dpi))]
     pub dpi: u16,
 
+    /// Quality of JPEG image compression.
+    #[arg(long, default_value_t = def!(quality))]
+    pub quality: u8,
+
+     /// Use only lossless compression for images.
+    #[arg(long, action = ArgAction::SetTrue, default_value_t = def!(lossless))]
+    pub lossless: bool,
+
     /// Margin for image pages.
     #[arg(short = 'm', long, value_name = "MARGIN",value_parser =parse_custom_size,default_value_t= def!(margin))]
     pub margin: CustomSize,
@@ -163,7 +171,9 @@ impl Args {
             libreoffice_path,
             alphabetic_file_sorting: self.alphabetic_file_sorting,
             confirm_exit: self.confirm_exit,
-            dpi: self.dpi,
+            image_dpi: self.dpi,
+            image_quality:self.quality,
+            image_lossless_compression:self.lossless,
             force_image_page_fallback_size: self.force_image_page_fallback_size,
             image_page_fallback_size: self.image_page_fallback_size,
             margin: self.margin,
@@ -336,6 +346,8 @@ impl Default for Args {
             recursion_limit: 4,
             image_page_fallback_size: IsoPaper::a(4).into(),
             dpi: 300,
+            quality:95,
+            lossless:false,
             margin: CustomSize::zero(),
             force_image_page_fallback_size: false,
             alphabetic_file_sorting: false,

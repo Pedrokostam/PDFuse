@@ -61,12 +61,12 @@ macro_rules! error_t {
 
     ($key:expr) => {{
         let translated_message = $crate::rust_i18n::t!($key);
-        $crate::log::error!("{}", translated_message);
+        $crate::log::error!("{} {}: {}",file!(),line!(), translated_message);
     }};
 
     ($key:expr, $($t_args:tt)+) => {{
         let translated_message = $crate::rust_i18n::t!($key, $($t_args)*);
-        $crate::log::error!("{}", translated_message);
+        $crate::log::error!("{} {}: {}",file!(),line!(), translated_message);
     }};
 }
 pub fn set_localization(identifier: &str) {
