@@ -9,10 +9,10 @@ use clap::{
     builder::styling, ArgAction, ColorChoice, CommandFactory, FromArgMatches, Parser, ValueEnum,
     ValueHint,
 };
-use pdfuse_sizing::{CustomSize, IsoPaper, LengthParseError, PageSize, PageSizeError};
+use pdfuse_sizing::{CustomSize, IsoPaper, PageSize};
 use pdfuse_utils::Indexed;
 use rust_i18n::t;
-use serde::{de, Deserialize, Serialize};
+use serde::{ Deserialize, Serialize};
 use std::{
     env,
     ffi::OsString,
@@ -67,7 +67,7 @@ macro_rules! def {
         Args::default().$field
     };
 }
-#[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize,PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize, PartialEq, Eq)]
 pub enum LogLevel {
     /// A level lower than all log levels.
     Off,
@@ -102,7 +102,7 @@ impl From<LogLevel> for log::LevelFilter {
 /// Relative paths are based on the current working directory.
 ///
 /// Can be serialized to save a configuration.
-#[derive(Parser, Debug, Serialize, Deserialize,PartialEq)]
+#[derive(Parser, Debug, Serialize, Deserialize, PartialEq)]
 #[command(author, version, about, color=ColorChoice::Auto,styles=STYLES,arg_required_else_help = true)]
 #[serde(default)]
 pub struct Args {
@@ -328,11 +328,11 @@ impl Args {
         let expanded_config_path = expand_path(config_path_property)
             .ok_or_else(|| ConfigError::MalformedPath(config_path_property.to_string()))?;
         let config_path = Path::new(&expanded_config_path);
-        if config_path.exists(){
+        if config_path.exists() {
             // Try to read the config file. Exit on fail.
             let loaded_config_text = fs::read_to_string(config_path)?;
             let loaded = toml::from_str::<Args>(&loaded_config_text)?;
-    
+
             hack!(mut args, loaded, confirm_exit, matches); //: false,
             hack!(mut args, loaded, quiet, matches); //: false,
             hack!(mut args, loaded, what_if, matches); //: false,
@@ -348,12 +348,11 @@ impl Args {
             hack!(mut args, loaded, alphabetic_file_sorting, matches); //: false,
             hack!(mut args, loaded, libreoffice_path, matches); //: get_default_libre(),
             hack!(mut args, loaded, output_directory, matches); //: ".".to_owned(),
-        }
-        else if !is_default_config {
+        } else if !is_default_config {
             // config does not exist and it is not default
-              Err(ConfigError::MissingConfigError(
-                    expanded_config_path.to_owned(),
-                ))?
+            Err(ConfigError::MissingConfigError(
+                expanded_config_path.to_owned(),
+            ))?
         }
         log::set_max_level(args.log.into());
         Ok(args)

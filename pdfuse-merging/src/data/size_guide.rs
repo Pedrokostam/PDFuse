@@ -1,4 +1,3 @@
-use std::collections::{btree_set::Range, HashMap};
 
 use pdfuse_parameters::{Parameters, SourcePath};
 use pdfuse_sizing::{CustomSize, Size};

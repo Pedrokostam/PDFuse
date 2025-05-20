@@ -1,5 +1,7 @@
 use std::{error::Error, fmt::Display, process::ExitStatus};
 
+use pdfuse_utils::write_t;
+
 pub enum LibreConversionError {
     Process(std::io::Error),
     Status(ExitStatus),
@@ -69,8 +71,8 @@ pub enum ImageLoadError{
 impl Display for ImageLoadError{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self{
-            ImageLoadError::UnknownFormat => todo!(),
-            ImageLoadError::UnknownPixelType => todo!(),
+            ImageLoadError::UnknownFormat =>write_t!(f,"image_invalid_format"),
+            ImageLoadError::UnknownPixelType => write_t!(f,"image_invalid_pixel_type"),
         }
     }
 }

@@ -1,14 +1,9 @@
-use std::path::PathBuf;
-use std::thread::sleep;
-use std::time::Duration;
-use std::{fmt::Display, path::Path};
+use std::path::Path;
 
 use indicatif::ProgressBar;
 use once_cell::sync::Lazy;
-use pdfuse_utils::{error_t, get_busy_indicator, BusyIndicator};
+use pdfuse_utils::{error_t, get_busy_indicator};
 use pdfuse_utils::{info_t, Indexed};
-use serde::Deserialize;
-use serde::Serialize;
 use walkdir::{DirEntry, WalkDir};
 
 pub(crate) const IMAGE_EXTENSIONS: &[&str] = &[

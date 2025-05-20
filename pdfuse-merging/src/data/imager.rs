@@ -1,22 +1,12 @@
-use std::{
-    any::{type_name, type_name_of_val},
-    cmp::min,
-};
 
-use image::{imageops::FilterType, DynamicImage, GenericImageView};
+use image::{imageops::FilterType, DynamicImage};
 use lopdf::Document;
-use pdfuse_sizing::{CustomSize, Length, Size, Unit};
-use pdfuse_utils::{
-    debug_t,
-    log::{self, debug, logger},
-};
+use pdfuse_sizing::{CustomSize, Length, Size};
+use pdfuse_utils::debug_t;
 // use lopdf::Document, Image, ImageTransform, ImageXObject, PdfDocumentReference, PdfLayerReference,
+use printpdf::ImageCompression;
 use printpdf::{
-    units::{Mm, Pt},
-    ImageCompression,
-};
-use printpdf::{
-    ImageOptimizationOptions, Layer, PdfDocument, PdfPage, RawImageData, RawImageFormat,
+    ImageOptimizationOptions, PdfDocument, PdfPage, RawImageData, RawImageFormat,
 };
 use printpdf::{PdfSaveOptions, PdfWarnMsg, RawImage};
 
@@ -135,19 +125,6 @@ impl Imager {
         }
     }
 
-    // fn add_page_for_image(&mut self) -> Layer {
-    //     let pp =  PdfPage::new(
-    //         self.page_size.horizontal.into(),
-    //         self.page_size.vertical.into(),
-    //         vec![]);
-    //     self.document.pages.push( pp);
-    //     self.document.pages.last().unwrap().get_layers()[0]
-    // }
-
-    pub fn page_count(&self) -> usize {
-        self.pages.len()
-    }
-
     pub fn add_image(&mut self, image: LoadedImage) -> Result<(), ImageLoadError> {
         let page_size = self.page_size;
         let page_with_margins = page_size - self.margin;
@@ -157,16 +134,7 @@ impl Imager {
         let image_size = get_image_size(&adjusted_image, self.dpi);
 
         let pdf_image = dynamic_to_pdf(adjusted_image)?;
-        // let warned_image =
-        //     RawImage::decode_from_bytes(&adjusted_image.(), &mut warnings);
-
-        // let pdf_image: RawImage = match warned_image {
-        //     Ok(iw) => iw,
-        //     Err(e) => {
-        //         log::error!("{e}");
-        //         return;
-        //     }
-        // };
+        
         let image_id = self.document.add_image(&pdf_image);
         let scale = page_with_margins.fit_size(&image_size);
         let translation = get_image_translation(page_size, image_size * scale, self.margin);

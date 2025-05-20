@@ -1,10 +1,9 @@
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::MultiProgress;
 use lopdf::{Bookmark, Document, Object, ObjectId};
-use pdfuse_sizing::{CustomSize, PageSize, Size};
-use pdfuse_utils::{create_temp_dir, error_t, get_progress_indicator, log, BusyIndicator, Indexed};
+use pdfuse_utils::{error_t, get_progress_indicator, log, Indexed};
 use rayon::prelude::*;
 use size_guide::SizeGuide;
-use std::{collections::BTreeMap, fmt::Display, path::PathBuf, time::Duration};
+use std::{collections::BTreeMap, fmt::Display, path::PathBuf};
 
 pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
