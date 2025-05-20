@@ -4,7 +4,6 @@ use std::{
 };
 
 use once_cell::sync::Lazy;
-use printpdf::scale::Mm;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -12,9 +11,9 @@ use crate::errors::{LengthParseError, UnitParseError};
 
 use super::{parsing::ParseResult, unit::Unit};
 
-#[derive(Debug, PartialEq, Clone, Copy, PartialOrd,Serialize,Deserialize)]
-#[serde(try_from ="String")]
-#[serde(into ="String")]
+#[derive(Debug, PartialEq, Clone, Copy, PartialOrd, Serialize, Deserialize)]
+#[serde(try_from = "String")]
+#[serde(into = "String")]
 pub struct Length {
     pub(crate) base_value: f64,
 }
@@ -33,7 +32,7 @@ impl TryFrom<&str> for Length {
 impl TryFrom<String> for Length {
     type Error = LengthParseError;
 
-    fn try_from(value:String) -> Result<Self, Self::Error> {
+    fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::try_from_string(&value)
     }
 }
@@ -218,11 +217,18 @@ impl Display for Length {
         )
     }
 }
-impl From<Length> for printpdf::scale::Mm {
+impl From<Length> for printpdf::units::Mm {
     fn from(val: Length) -> Self {
-        Mm(val.mm() as f32)
+        printpdf::units::Mm(val.mm() as f32)
     }
 }
+
+impl From<Length> for printpdf::units::Pt {
+    fn from(val: Length) -> Self {
+        printpdf::units::Pt(val.pt() as f32)
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -254,7 +260,8 @@ mod tests {
             ("121 points", Length::from_points(121.0)),
         ];
         for (text, length) in texts {
-            let parsed = Length::try_from_string(text).expect(&format!("Could not parse {}", &text));
+            let parsed =
+                Length::try_from_string(text).expect(&format!("Could not parse {}", &text));
             assert_eq!(parsed, length, "{} to {}", text, length);
         }
     }

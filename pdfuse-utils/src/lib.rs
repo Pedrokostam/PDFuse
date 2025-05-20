@@ -1,13 +1,13 @@
+mod indexed;
 mod localization;
 mod logger;
 mod progress;
-mod indexed;
 use std::path::PathBuf;
 
-pub use log;
 pub use indexed::Indexed;
+pub use log;
 pub use logger::CONSOLE_LOGGER;
-pub use progress::BusyIndicator;
+pub use progress::{get_busy_indicator, get_progress_indicator, BusyIndicator};
 pub use rust_i18n;
 rust_i18n::i18n!();
 /// Logs translated text (with optional arguments) as info
@@ -61,16 +61,31 @@ macro_rules! error_t {
 
     ($key:expr) => {{
         let translated_message = $crate::rust_i18n::t!($key);
-        $crate::log::error!("{}", translated_message);
+        $crate::log::error!("{} {}: {}",file!(),line!(), translated_message);
     }};
 
     ($key:expr, $($t_args:tt)+) => {{
         let translated_message = $crate::rust_i18n::t!($key, $($t_args)*);
-        $crate::log::error!("{}", translated_message);
+        $crate::log::error!("{} {}: {}",file!(),line!(), translated_message);
     }};
 }
 pub fn set_localization(identifier: &str) {
     rust_i18n::set_locale(identifier);
+}
+
+/// Translates given text and passes it to a formatter
+#[macro_export]
+macro_rules! write_t {
+
+    ($dst:expr, $key:expr) => {{
+        let translated_message = $crate::rust_i18n::t!($key);
+        write!($dst,"{}",translated_message)
+    }};
+
+    ($dst:expr, $key:expr, $($t_args:tt)+) => {{
+        let translated_message = $crate::rust_i18n::t!($key, $($t_args)*);
+        write!($dst,"{}",translated_message)
+    }};
 }
 
 /// Creates a directory in %TEMP% and returns its path.

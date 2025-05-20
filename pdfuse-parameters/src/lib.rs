@@ -1,11 +1,14 @@
 mod commandline_arguments;
 pub mod errors;
-mod file_finder;
+pub mod file_finder;
+pub mod invalid_source_type;
+pub mod source_path;
 mod parameters;
 mod paths;
 pub use commandline_arguments::Args;
-pub use file_finder::SourcePath;
 pub use parameters::{Parameters, ParametersWithPaths};
+pub use source_path::SourcePath;
+
 rust_i18n::i18n!();
 
 #[cfg(test)]

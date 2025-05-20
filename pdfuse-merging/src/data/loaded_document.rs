@@ -1,6 +1,6 @@
 use pdfuse_sizing::{CustomSize, Length};
 use pdfuse_utils::{debug_t, error_t};
-use printpdf::lopdf::Document;
+use lopdf::Document;
 use std::{
     fmt::{Debug, Display},
     path::{Path, PathBuf},

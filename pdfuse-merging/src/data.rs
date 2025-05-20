@@ -1,13 +1,16 @@
-use pdfuse_sizing::{CustomSize, Size};
-use pdfuse_utils::{create_temp_dir, error_t, Indexed};
-use printpdf::lopdf::{Bookmark, Document, Object, ObjectId};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use lopdf::{Bookmark, Document, Object, ObjectId};
+use pdfuse_sizing::{CustomSize, PageSize, Size};
+use pdfuse_utils::{create_temp_dir, error_t, get_progress_indicator, log, BusyIndicator, Indexed};
 use rayon::prelude::*;
-use std::{collections::BTreeMap, fmt::Display, path::PathBuf};
+use size_guide::SizeGuide;
+use std::{collections::BTreeMap, fmt::Display, path::PathBuf, time::Duration};
 
 pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
 pub use loaded_image::LoadedImage;
 use pdfuse_parameters::{
+    source_path::display_path,
     Parameters,
     SourcePath::{self, Image, LibreDocument, Pdf},
 };
@@ -16,6 +19,19 @@ use crate::DocumentLoadError;
 mod imager;
 mod loaded_document;
 mod loaded_image;
+mod optional_thread;
+mod size_guide;
+use optional_thread::OptionalThread;
+
+/// Applies `f` to each element of `iter` and collects the results into a `Vec`
+fn vector_map<T, U, F, W>(iter: T, f: F) -> Vec<W>
+where
+    T: IntoIterator<Item = U>,
+    F: FnMut(U) -> W,
+{
+    iter.into_iter().map(f).collect()
+}
+
 pub enum Data {
     Image(LoadedImage),
     Document(LoadedDocument),
@@ -35,6 +51,7 @@ impl From<LoadedDocument> for Data {
         Self::Document(value)
     }
 }
+
 impl Display for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -49,10 +66,17 @@ impl Display for Data {
         }
     }
 }
-pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
+
+struct SplitPathsResult(
+    Vec<Indexed<PathBuf>>,
+    Vec<Indexed<PathBuf>>,
+    Vec<Indexed<PathBuf>>,
+);
+
+fn split_paths(sources: Vec<Indexed<SourcePath>>) -> SplitPathsResult {
     let mut images_to_load: Vec<Indexed<PathBuf>> = Vec::with_capacity(sources.len());
-    let mut documents_to_pdf: Vec<Indexed<PathBuf>> = Vec::with_capacity(sources.len());
     let mut pdfs_to_load: Vec<Indexed<PathBuf>> = Vec::with_capacity(sources.len());
+    let mut documents_to_pdf: Vec<Indexed<PathBuf>> = Vec::with_capacity(sources.len());
     for isp in sources {
         let index = isp.index();
         match isp.unwrap() {
@@ -61,76 +85,170 @@ pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
             LibreDocument(path_buf) => documents_to_pdf.push((index, path_buf).into()),
         }
     }
-    let parameters_2 = parameters.clone();
-    let conversion_thread = std::thread::spawn(move || {
-        let paths = convert_data_to_documents(documents_to_pdf, &parameters_2);
-        let output: Vec<Indexed<PdfResult<Data>>> = paths
-            .into_iter()
-            .map(|indexed| {
-                indexed.map_with_index(|result| match result {
-                    Ok(path) => preload_pdf(path),
-                    Err(err) => Err(err),
-                })
-            })
-            .collect();
-        output
-    });
+    SplitPathsResult(images_to_load, pdfs_to_load, documents_to_pdf)
+}
 
-    let loaded_images: Vec<IndexedPdfResult<Data>> = images_to_load
-        .into_iter()
-        .map(preload_image_indexed)
-        .collect();
-    let loaded_pdfs: Vec<IndexedPdfResult<Data>> =
-        pdfs_to_load.into_iter().map(preload_pdf_indexed).collect();
+/// Like <code>run_in_parallel_with_libre</code> but when there are no documents or if the fallback size is forced.
+fn size_information_not_needed(
+    loaded_images: Vec<IndexedPdfResult<Data>>,
+    loaded_pdfs: Vec<IndexedPdfResult<Data>>,
+    parameters: &Parameters,
+    optional_thread: OptionalThread,
+    multi_progress: &MultiProgress,
+) -> Vec<IndexedPdfResult<Document>> {
+    run_in_parallel_with_libre(
+        loaded_images,
+        loaded_pdfs,
+        parameters,
+        optional_thread,
+        multi_progress,
+    )
+}
+/// Images (if any) do not need to rely on libre documents' sizes.
+/// 
+/// It's possible to start image conversion while the libre thread is running
+fn run_in_parallel_with_libre(
+    loaded_images: Vec<IndexedPdfResult<Data>>,
+    loaded_pdfs: Vec<IndexedPdfResult<Data>>,
+    parameters: &Parameters,
+    optional_thread: OptionalThread,
+    multi_progress: &MultiProgress,
+) -> Vec<IndexedPdfResult<Document>> {
+    let loaded_images_pdfs: Vec<IndexedPdfResult<Data>> =
+        loaded_images.into_iter().chain(loaded_pdfs).collect();
 
-    let loaded_documents = conversion_thread
-        .join()
-        .expect("The Libre thread should not fail");
-    let mut loaded_all: Vec<IndexedPdfResult<Data>> = loaded_images
+    let guide = SizeGuide::new(&loaded_images_pdfs, parameters);
+
+    let images_and_pdfs: Vec<Indexed<Result<Document, DocumentLoadError>>> =
+        parallel_documentize(parameters, &guide, loaded_images_pdfs, &multi_progress);
+
+    // join the parallel thread now, after converting all images
+    let converted_documents = optional_thread.get_converted_data();
+    let loaded_documents =
+        parallel_documentize(parameters, &guide, converted_documents, &multi_progress);
+
+    let mut all_items: Vec<IndexedPdfResult<Document>> = images_and_pdfs
         .into_iter()
-        .chain(loaded_pdfs)
         .chain(loaded_documents)
         .collect();
-    loaded_all.sort_by_key(|x| x.index());
-    // page size
-    let mut first_page_size: Option<CustomSize> = None;
-    if !parameters.force_image_page_fallback_size {
-        for indexed_result in loaded_all.iter().filter(|i| i.value().is_ok()) {
-            match indexed_result.value().as_ref().unwrap() {
-                Data::Document(loaded_document) => first_page_size = loaded_document.page_size(),
-                _ => continue,
-            }
-            if first_page_size.is_some() {
-                break;
-            }
-        }
-    }
-    first_page_size.get_or_insert(parameters.image_page_fallback_size.to_custom_size());
-    //
-    let mut documents: Vec<Indexed<PdfResult<Document>>> = loaded_all
+    all_items.sort_by_key(|x| x.index());
+    all_items
+}
+
+/// Images need to rely on libre documents' sizes.
+/// 
+/// Image conversion has to wait until libre conversion finishes.
+fn wait_for_libre(
+    loaded_images: Vec<IndexedPdfResult<Data>>,
+    loaded_pdfs: Vec<IndexedPdfResult<Data>>,
+    parameters: &Parameters,
+    optional_thread: OptionalThread,
+    multi_progress: &MultiProgress,
+) -> Vec<IndexedPdfResult<Document>> {
+    let loaded_converted_documents: Vec<IndexedPdfResult<Data>> =
+        optional_thread.get_converted_data();
+
+    let loaded_all: Vec<IndexedPdfResult<Data>> = loaded_pdfs
+        .into_iter()
+        .chain(loaded_images)
+        .chain(loaded_converted_documents)
+        .collect();
+
+    let guide = SizeGuide::new(&loaded_all, parameters);
+
+    let mut all_items = parallel_documentize(parameters, &guide, loaded_all, multi_progress);
+    all_items.sort_by_key(|x| x.index());
+    all_items
+}
+
+fn parallel_documentize(
+    parameters: &Parameters,
+    guide: &SizeGuide,
+    loaded_all: Vec<Indexed<Result<Data, DocumentLoadError>>>,
+    multi_progress: &MultiProgress,
+) -> Vec<Indexed<Result<Document, DocumentLoadError>>> {
+    let bar = multi_progress.add(get_progress_indicator(
+        loaded_all.len() as u64,
+        "Converting images and PDFs",
+    ));
+    loaded_all
         .into_par_iter()
         .map(|loaded| {
-            loaded.map_with_index(|indexed_result| match indexed_result {
+            let index = loaded.index();
+            let value = match loaded.unwrap() {
                 Ok(data) => match data {
                     Data::Image(loaded_image) => {
                         let mut imager = Imager::new(
                             "title",
-                            first_page_size.unwrap(),
-                            parameters.dpi,
+                            guide.get_size(index),
+                            parameters.image_dpi,
                             parameters.margin,
+                            parameters.image_quality,
+                            parameters.image_lossless_compression,
                         );
-                        imager.add_image(loaded_image);
+                        let path = display_path(loaded_image.source_path());
+                        match imager.add_image(loaded_image) {
+                            Ok(_) => (),
+                            Err(e) => log::error!("{e} - {path}"),
+                        }
                         Ok(imager.close_and_into_document())
                     }
                     Data::Document(loaded_document) => Ok(loaded_document.into()),
                 },
                 Err(err) => Err(err),
-            })
+            };
+            Indexed::new(index, value)
         })
-        .collect();
-    documents.sort_by_key(|k| k.index());
+        .inspect(|_| bar.inc(1))
+        .collect()
+}
+
+pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
+    if !sources.is_sorted_by_key(|x| x.index()) {
+        panic!("Paths are supposed to be sorted already!");
+    }
+    let parent_bar = MultiProgress::new();
+    // let busy = BusyIndicator::new_with_message("Loading files...");
+    let branch = SizeGuide::need_to_wait_for_pdf_threads(&sources, parameters);
+    let SplitPathsResult(images_to_load, pdfs_to_load, documents_to_pdf) = split_paths(sources);
+
+    let conversion_thread =
+        OptionalThread::create(documents_to_pdf, parameters, parent_bar.clone());
+    // load all PDFs as Data - limited only by disk IO
+    let loaded_pdfs = vector_map(pdfs_to_load, preload_pdf_indexed);
+
+    // load all images as Data - limited only by disk IO
+    let loaded_images: Vec<IndexedPdfResult<Data>> =
+        vector_map(images_to_load, preload_image_indexed);
+
+    // drop(busy);
+    let all_documents_to_merge = match branch {
+        size_guide::GuideRequirement::SizeInformationNotNeeded => size_information_not_needed(
+            loaded_images,
+            loaded_pdfs,
+            parameters,
+            conversion_thread,
+            &parent_bar,
+        ),
+        size_guide::GuideRequirement::WaitForLibreConversion => wait_for_libre(
+            loaded_images,
+            loaded_pdfs,
+            parameters,
+            conversion_thread,
+            &parent_bar,
+        ),
+        size_guide::GuideRequirement::RunInParallelWithLibreConversion => {
+            run_in_parallel_with_libre(
+                loaded_images,
+                loaded_pdfs,
+                parameters,
+                conversion_thread,
+                &parent_bar,
+            )
+        }
+    };
     merge_documents(
-        documents.into_iter().map(|x| x.unwrap()),
+        all_documents_to_merge.into_iter().map(|x| x.unwrap()),
         &parameters.output_file,
     );
 }
@@ -142,28 +260,7 @@ fn preload_pdf_indexed(path: Indexed<PathBuf>) -> Indexed<PdfResult<Data>> {
     path.map_with_index(preload_pdf)
 }
 fn preload_pdf(path: PathBuf) -> PdfResult<Data> {
-    LoadedDocument::load_pdf(&path)
-        .map(Into::into)
-        .map_err(Into::into)
-}
-fn convert_data_to_documents(
-    document_paths: Vec<Indexed<PathBuf>>,
-    parameters: &Parameters,
-) -> Vec<Indexed<PdfResult<PathBuf>>> {
-    if parameters.libreoffice_path.is_none() {
-        return vec![];
-    }
-    let temp_dir = create_temp_dir();
-    let libre_path = parameters.libreoffice_path.clone().unwrap();
-    document_paths
-        .into_iter()
-        .map(|p| {
-            p.map_with_index(|x| {
-                loaded_document::convert_document_to_pdf(&x, &libre_path, &temp_dir)
-                    .map_err(Into::into)
-            })
-        })
-        .collect()
+    LoadedDocument::load_pdf(&path).map(LoadedDocument::into)
 }
 
 pub fn merge_documents<T>(documents: T, output_path: &str)
@@ -174,8 +271,8 @@ where
     let mut max_id = 1;
     let mut pagenum = 1;
     // Collect all Documents Objects grouped by a map
-    let mut documents_pages = BTreeMap::new();
-    let mut documents_objects = BTreeMap::new();
+    let mut documents_pages: BTreeMap<ObjectId, Object> = BTreeMap::new();
+    let mut documents_objects: BTreeMap<ObjectId, Object> = BTreeMap::new();
     let mut document = Document::with_version("1.5");
     // https://github.com/J-F-Liu/lopdf/blob/0d65f6ed5b55fde1a583861535b4bfc6cdf42de1/README.md
     for result in documents {
@@ -194,12 +291,8 @@ where
                 .into_values()
                 .map(|object_id| {
                     if !first {
-                        let bookmark = Bookmark::new(
-                            format!("Page_{}", pagenum),
-                            [0.0, 0.0, 1.0],
-                            0,
-                            object_id,
-                        );
+                        let bookmark =
+                            Bookmark::new(format!("Page_{pagenum}"), [0.0, 0.0, 1.0], 0, object_id);
                         document.add_bookmark(bookmark, None);
                         first = true;
                         pagenum += 1;
@@ -219,8 +312,8 @@ where
     for (object_id, object) in documents_objects.iter() {
         // We have to ignore "Page" (as are processed later), "Outlines" and "Outline" objects
         // All other objects should be collected and inserted into the main Document
-        match object.type_name().unwrap_or("") {
-            "Catalog" => {
+        match object.type_name().unwrap_or(b"") {
+            b"Catalog" => {
                 // Collect a first "Catalog" object and use it for the future "Pages"
                 catalog_object = Some((
                     if let Some((id, _)) = catalog_object {
@@ -231,7 +324,7 @@ where
                     object.clone(),
                 ));
             }
-            "Pages" => {
+            b"Pages" => {
                 // Collect and update a first "Pages" object and use it for the future "Catalog"
                 // We have also to merge all dictionaries of the old and the new "Pages" object
                 if let Ok(dictionary) = object.as_dict() {
@@ -252,9 +345,9 @@ where
                     ));
                 }
             }
-            "Page" => {}     // Ignored, processed later and separately
-            "Outlines" => {} // Ignored, not supported yet
-            "Outline" => {}  // Ignored, not supported yet
+            b"Page" => {}     // Ignored, processed later and separately
+            b"Outlines" => {} // Ignored, not supported yet
+            b"Outline" => {}  // Ignored, not supported yet
             _ => {
                 document.objects.insert(*object_id, object.clone());
             }

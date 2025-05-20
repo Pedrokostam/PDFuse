@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 fn get_changed_args() -> Args {
     let def: Args = Args::default();
-    Args {
+    let res = Args {
         files: vec![],
         save_config: None,
         confirm_exit: !def.confirm_exit,
@@ -14,13 +14,18 @@ fn get_changed_args() -> Args {
         recursion_limit: 17,
         image_page_fallback_size: IsoPaper::c(10).into(),
         dpi: 1337,
+        quality: 13,
+        log: LogLevel::Info,
+        lossless: true,
         margin: CustomSize::from_inches(0.5, 0.5),
         force_image_page_fallback_size: !def.force_image_page_fallback_size,
         alphabetic_file_sorting: !def.alphabetic_file_sorting,
         libreoffice_path: vec!["/usr/bin/sl".to_owned()],
         output_directory: "~/o".to_owned(),
         output_file: Some("~/o/p.pdf".to_owned()),
-    }
+    };
+    assert_ne!(def,res);
+    res
 }
 
 macro_rules! fake_args {
@@ -45,7 +50,6 @@ impl Display for Diff {
 
 macro_rules! changes {
     ($a:expr,$b:expr,$($item:ident),* $(,)?) =>{ {
-        let ph = "NONE".to_owned();
         let mut a:Vec<Diff> = vec![
         ];
         $(
@@ -101,7 +105,8 @@ fn commandline_args_triumph_over_loaded() {
         &default.margin,
         "--config",
         &config_path,
-    ]).unwrap();
+    ])
+    .unwrap();
     assert_ne!(
         default.dpi, loaded_config.dpi,
         "DPI is the same in default and loaded"

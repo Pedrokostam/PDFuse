@@ -8,7 +8,7 @@ use image_pdf::ImagePdf;
 use crate::error_t;
 
 pub enum Pdf {
-    Images(ImagePdf),
+     Images(ImagePdf),
     PdfFile(Document),
     //OdfFile
 }

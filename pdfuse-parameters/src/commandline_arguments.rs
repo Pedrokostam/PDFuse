@@ -1,27 +1,29 @@
 use crate::{
-    errors::{ConfigError, InvalidInputFileError},
+    errors::ConfigError,
     file_finder,
     parameters::{Parameters, ParametersWithPaths},
     paths::{self, expand_path},
     SourcePath,
 };
 use clap::{
-    builder::styling, ArgAction, ColorChoice, CommandFactory, FromArgMatches, Parser, ValueHint,
+    builder::styling, ArgAction, ColorChoice, CommandFactory, FromArgMatches, Parser, ValueEnum,
+    ValueHint,
 };
 use pdfuse_sizing::{CustomSize, IsoPaper, LengthParseError, PageSize, PageSizeError};
 use pdfuse_utils::Indexed;
 use rust_i18n::t;
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 use std::{
     env,
     ffi::OsString,
     fmt::Debug,
-    fs, 
+    fs,
     path::{Path, PathBuf},
     str::FromStr,
 };
 
 const DEFAULT_CONFIG_PATH: &str = "config_auto.toml";
+
 const STYLES: styling::Styles = styling::Styles::styled()
     .header(styling::AnsiColor::Green.on_default().bold())
     .usage(styling::AnsiColor::BrightMagenta.on_default().bold())
@@ -41,9 +43,11 @@ const DEFAULT_LIBRE_PATHS: &[&str] = {
         &["/usr/bin/soffice"]
     }
 };
+
 fn get_default_libre() -> Vec<String> {
     DEFAULT_LIBRE_PATHS.iter().map(|p| p.to_string()).collect()
 }
+
 /// Replaces the `$field` in `$parsed` with the value from `$loaded` if `$field` was not specified in the commandline.
 macro_rules! hack {
     (mut $parsed:expr,$loaded:expr,$field:ident,$matches:expr) => {{
@@ -56,17 +60,50 @@ macro_rules! hack {
         }
     }};
 }
+
+/// Use the value for the field from the default implementation
 macro_rules! def {
     ($field:ident) => {
         Args::default().$field
     };
 }
+#[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize,PartialEq, Eq)]
+pub enum LogLevel {
+    /// A level lower than all log levels.
+    Off,
+    /// Corresponds to the `Error` log level.
+    Error,
+    /// Corresponds to the `Warn` log level.
+    Warn,
+    /// Corresponds to the `Info` log level.
+    Info,
+    /// Corresponds to the `Debug` log level.
+    Debug,
+    /// Corresponds to the `Trace` log level.
+    Trace,
+}
+
+impl From<LogLevel> for log::LevelFilter {
+    fn from(value: LogLevel) -> Self {
+        match value {
+            LogLevel::Off => log::LevelFilter::Off,
+            LogLevel::Error => log::LevelFilter::Error,
+            LogLevel::Warn => log::LevelFilter::Warn,
+            LogLevel::Info => log::LevelFilter::Info,
+            LogLevel::Debug => log::LevelFilter::Debug,
+            LogLevel::Trace => log::LevelFilter::Trace,
+        }
+    }
+}
+
 /// Command-line tool to process directories and files with various options.
 ///
 /// Directories will be searched recursively looking for images, PDFs, and office document formats.
 /// Relative paths are based on the current working directory.
-#[derive(Parser, Debug, Serialize, Deserialize)]
-#[command(author, version, about, color=ColorChoice::Always,styles=STYLES,arg_required_else_help = true)]
+///
+/// Can be serialized to save a configuration.
+#[derive(Parser, Debug, Serialize, Deserialize,PartialEq)]
+#[command(author, version, about, color=ColorChoice::Auto,styles=STYLES,arg_required_else_help = true)]
 #[serde(default)]
 pub struct Args {
     /// Directories and files to be processed.
@@ -80,7 +117,9 @@ pub struct Args {
     #[serde(skip_serializing)]
     pub save_config: Option<String>,
 
-    /// Confirm exit.
+    /// Require user input before closing the app.
+    ///
+    /// Useful when starting the app from desktop (allows the user to read the logs).
     #[arg(long, action = ArgAction::SetTrue, default_value_t = def!(confirm_exit))]
     pub confirm_exit: bool,
 
@@ -106,15 +145,26 @@ pub struct Args {
     pub recursion_limit: usize,
 
     /// Fallback page size when adding images.
-    #[arg(short = 'p', long,  value_name = "PAGE_SIZE", value_parser =parse_page_size,default_value_t)]
+    #[arg(short = 'p', long,  value_name = "PAGE_SIZE", value_parser =PageSize::try_from_string,default_value_t)]
     pub image_page_fallback_size: PageSize,
 
     /// DPI used when adding images.
     #[arg(long, default_value_t = def!(dpi))]
     pub dpi: u16,
 
+    /// Quality of JPEG image compression.
+    #[arg(long, default_value_t = def!(quality))]
+    pub quality: u8,
+
+    /// Use only lossless compression for images.
+    #[arg(long, action = ArgAction::SetTrue, default_value_t = def!(lossless))]
+    pub lossless: bool,
+
+    #[arg(long,value_enum, default_value_t = def!(log))]
+    pub log: LogLevel,
+
     /// Margin for image pages.
-    #[arg(short = 'm', long, value_name = "MARGIN",value_parser =parse_custom_size,default_value_t= def!(margin))]
+    #[arg(short = 'm', long, value_name = "MARGIN",value_parser =CustomSize::try_from_string,default_value_t= def!(margin))]
     pub margin: CustomSize,
 
     /// Force the fallback size for image pages, overriding other PDFs.
@@ -139,18 +189,13 @@ pub struct Args {
     pub output_file: Option<String>,
 }
 
-fn parse_page_size(arg: &str) -> Result<PageSize, PageSizeError> {
-    PageSize::try_from_string(arg)
-}
-fn parse_custom_size(arg: &str) -> Result<CustomSize, LengthParseError> {
-    CustomSize::try_from_string(arg)
-}
 impl Args {
     pub fn is_valid(&self) -> bool {
         !self.files.is_empty()
     }
-    pub fn make_parameters(mut self) -> Result<ParametersWithPaths, InvalidInputFileError> {
-        self.save_config();
+
+    pub fn make_parameters(self) -> Result<ParametersWithPaths, ConfigError> {
+        self.save_config()?;
         let libreoffice_path = self.check_libre();
         let office_good = libreoffice_path.is_some();
         let files = self.get_flat_files(
@@ -162,7 +207,9 @@ impl Args {
             libreoffice_path,
             alphabetic_file_sorting: self.alphabetic_file_sorting,
             confirm_exit: self.confirm_exit,
-            dpi: self.dpi,
+            image_dpi: self.dpi,
+            image_quality: self.quality,
+            image_lossless_compression: self.lossless,
             force_image_page_fallback_size: self.force_image_page_fallback_size,
             image_page_fallback_size: self.image_page_fallback_size,
             margin: self.margin,
@@ -173,6 +220,7 @@ impl Args {
         };
         Ok(ParametersWithPaths { files, parameters })
     }
+
     fn check_libre(&self) -> Option<PathBuf> {
         for libre_path in &self.libreoffice_path {
             let expanded_path = paths::expand_path(libre_path);
@@ -188,6 +236,12 @@ impl Args {
         }
         None
     }
+
+    /// Saves this instance of [`Args`] to the path specified in the [`save_config`] field. Creates all needed directories.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if toml cannot be converted to string, or the current working directory cannot be found (never?).
     fn save_config(&self) -> Result<(), ConfigError> {
         let Some(save_config_path) = &self.save_config else {
             return Ok(());
@@ -204,11 +258,11 @@ impl Args {
         max_depth: usize,
         allow_office_docs: bool,
         sort: bool,
-    ) -> Result<Vec<Indexed<SourcePath>>, InvalidInputFileError> {
+    ) -> Result<Vec<Indexed<SourcePath>>, ConfigError> {
         let q = file_finder::get_files(&self.files, max_depth, allow_office_docs, sort);
         match q {
             v if !v.is_empty() => Ok(v),
-            _ => Err(InvalidInputFileError {}),
+            _ => Err(ConfigError::NoValidFiles),
         }
     }
 
@@ -236,13 +290,18 @@ impl Args {
         let contents = fs::read_to_string(path)?;
         Ok(toml::from_str::<Args>(&contents)?)
     }
+
+    /// Creates new Args from the parameters given to the app (when items are None) or from the given items.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     fn create_from<I, T>(items: Option<I>) -> Result<Self, ConfigError>
     where
         I: IntoIterator<Item = T> + Debug,
         T: Into<OsString> + Clone,
     {
-        let itera = format!("{:?}", &items);
-        let mut matches = match items {
+        let matches = match items {
             Some(x) => <Self as CommandFactory>::command().get_matches_from(x),
             None => <Self as CommandFactory>::command().get_matches(),
         };
@@ -263,40 +322,40 @@ impl Args {
                 e.exit();
             }
         };
-        let expanded_config_path_opt = expand_path(
-            &args
-                .config
-                .as_ref()
-                .unwrap_or(&DEFAULT_CONFIG_PATH.to_owned())
-                .to_owned(),
-        );
-        // res.save_config=Some("config.toml".to_owned());
-        // res.save_config();
-        let config_path = match &expanded_config_path_opt {
-            Some(s) => Path::new(s),
-            None => return Ok(args),
-        };
-        if !config_path.exists() {
-            return Ok(args);
+        let is_default_config = args.config.is_none();
+        let config_path_property = &args.config.as_deref().unwrap_or(DEFAULT_CONFIG_PATH);
+        // Get expanded path
+        let expanded_config_path = expand_path(config_path_property)
+            .ok_or_else(|| ConfigError::MalformedPath(config_path_property.to_string()))?;
+        let config_path = Path::new(&expanded_config_path);
+        if config_path.exists(){
+            // Try to read the config file. Exit on fail.
+            let loaded_config_text = fs::read_to_string(config_path)?;
+            let loaded = toml::from_str::<Args>(&loaded_config_text)?;
+    
+            hack!(mut args, loaded, confirm_exit, matches); //: false,
+            hack!(mut args, loaded, quiet, matches); //: false,
+            hack!(mut args, loaded, what_if, matches); //: false,
+            hack!(mut args, loaded, language, matches); //: None,
+            hack!(mut args, loaded, recursion_limit, matches); //: 4,
+            hack!(mut args, loaded, image_page_fallback_size, matches); //: IsoPaper::a(4).into(),
+            hack!(mut args, loaded, dpi, matches); //: 300,
+            hack!(mut args, loaded, margin, matches); //: CustomSize::zero(),
+            hack!(mut args, loaded, force_image_page_fallback_size, matches); //: false,
+            hack!(mut args, loaded, log, matches); //: depends,
+            hack!(mut args, loaded, quality, matches); //: 95,
+            hack!(mut args, loaded, lossless, matches); //: false,
+            hack!(mut args, loaded, alphabetic_file_sorting, matches); //: false,
+            hack!(mut args, loaded, libreoffice_path, matches); //: get_default_libre(),
+            hack!(mut args, loaded, output_directory, matches); //: ".".to_owned(),
         }
-        let Some(loaded) = fs::read_to_string(config_path)
-            .ok()
-            .and_then(|s| toml::from_str::<Args>(&s).ok())
-        else {
-            return Ok(args);
-        };
-        hack!(mut args, loaded, confirm_exit, matches); //: false,
-        hack!(mut args, loaded, quiet, matches); //: false,
-        hack!(mut args, loaded, what_if, matches); //: false,
-        hack!(mut args, loaded, language, matches); //: None,
-        hack!(mut args, loaded, recursion_limit, matches); //: 4,
-        hack!(mut args, loaded, image_page_fallback_size, matches); //: IsoPaper::a(4).into(),
-        hack!(mut args, loaded, dpi, matches); //: 300,
-        hack!(mut args, loaded, margin, matches); //: CustomSize::zero(),
-        hack!(mut args, loaded, force_image_page_fallback_size, matches); //: false,
-        hack!(mut args, loaded, alphabetic_file_sorting, matches); //: false,
-        hack!(mut args, loaded, libreoffice_path, matches); //: get_default_libre(),
-        hack!(mut args, loaded, output_directory, matches); //: ".".to_owned(),
+        else if !is_default_config {
+            // config does not exist and it is not default
+              Err(ConfigError::MissingConfigError(
+                    expanded_config_path.to_owned(),
+                ))?
+        }
+        log::set_max_level(args.log.into());
         Ok(args)
     }
 
@@ -307,6 +366,7 @@ impl Args {
     }
 }
 
+/// Returns a unique name based on current time (localized).
 fn get_unique_name() -> String {
     let now = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
     format!(
@@ -315,6 +375,7 @@ fn get_unique_name() -> String {
         date = now
     )
 }
+
 impl Default for Args {
     fn default() -> Self {
         Self {
@@ -328,14 +389,28 @@ impl Default for Args {
             recursion_limit: 4,
             image_page_fallback_size: IsoPaper::a(4).into(),
             dpi: 300,
+            quality: 95,
+            lossless: false,
             margin: CustomSize::zero(),
             force_image_page_fallback_size: false,
             alphabetic_file_sorting: false,
             libreoffice_path: get_default_libre(),
             output_directory: ".".to_owned(),
             output_file: None,
+            log: {
+                #[cfg(debug_assertions)]
+                {
+                    LogLevel::Trace
+                }
+
+                #[cfg(not(debug_assertions))]
+                {
+                    LogLevel::Error
+                }
+            },
         }
     }
 }
+
 #[cfg(test)]
 mod tests;

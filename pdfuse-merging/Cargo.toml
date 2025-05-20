@@ -4,14 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-image = "0.25.5"
+image = "0.25.6"
 pdfuse-sizing = { path = "../pdfuse-sizing" }
 pdfuse-utils = { path = "../pdfuse-utils" }
 pdfuse-parameters = { path = "../pdfuse-parameters" }
-printpdf = "0.7.0"
+indicatif.workspace = true
+printpdf = {workspace = true}
 rust-i18n.workspace = true
 dashmap = "6.1.0"
 rayon = "1.10.0"
+lopdf = "0.36.0"
 
 [lints]
 workspace = true
