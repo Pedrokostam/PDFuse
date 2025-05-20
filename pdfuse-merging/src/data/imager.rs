@@ -15,6 +15,8 @@ use crate::error::ImageLoadError;
 use super::LoadedImage;
 
 fn dynamic_to_pdf(image: DynamicImage) -> Result<RawImage, ImageLoadError> {
+    // yoinked from printpdf
+    // I couldn't find anything to create image from already loaded image.
     let width = image.width() as usize;
     let height = image.height() as usize;
     let data_format = match image.color() {

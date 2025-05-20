@@ -69,29 +69,20 @@ macro_rules! def {
 }
 #[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize, PartialEq, Eq)]
 pub enum LogLevel {
-    /// A level lower than all log levels.
-    Off,
-    /// Corresponds to the `Error` log level.
+    /// Log only errors.
     Error,
-    /// Corresponds to the `Warn` log level.
+    /// Log warnings and errors.
     Warn,
-    /// Corresponds to the `Info` log level.
-    Info,
-    /// Corresponds to the `Debug` log level.
+    /// Log everything, including debug information.
     Debug,
-    /// Corresponds to the `Trace` log level.
-    Trace,
 }
 
 impl From<LogLevel> for log::LevelFilter {
     fn from(value: LogLevel) -> Self {
         match value {
-            LogLevel::Off => log::LevelFilter::Off,
             LogLevel::Error => log::LevelFilter::Error,
             LogLevel::Warn => log::LevelFilter::Warn,
-            LogLevel::Info => log::LevelFilter::Info,
-            LogLevel::Debug => log::LevelFilter::Debug,
-            LogLevel::Trace => log::LevelFilter::Trace,
+            LogLevel::Debug => log::LevelFilter::Trace,
         }
     }
 }
@@ -123,10 +114,6 @@ pub struct Args {
     #[arg(long, action = ArgAction::SetTrue, default_value_t = def!(confirm_exit))]
     pub confirm_exit: bool,
 
-    /// Quiet mode: suppress all output.
-    #[arg(short, long, action = ArgAction::SetTrue, default_value_t = def!(quiet))]
-    pub quiet: bool,
-
     /// Dry run: run the program without outputting files.
     #[arg(long, alias = "whatif", action = ArgAction::SetTrue, default_value_t = def!(what_if))]
     pub what_if: bool,
@@ -157,9 +144,12 @@ pub struct Args {
     pub quality: u8,
 
     /// Use only lossless compression for images.
+    /// 
+    /// Warning! May dramatically increase output size!
     #[arg(long, action = ArgAction::SetTrue, default_value_t = def!(lossless))]
     pub lossless: bool,
 
+    /// Controls which messages are logged into console.
     #[arg(long,value_enum, default_value_t = def!(log))]
     pub log: LogLevel,
 
@@ -213,7 +203,6 @@ impl Args {
             force_image_page_fallback_size: self.force_image_page_fallback_size,
             image_page_fallback_size: self.image_page_fallback_size,
             margin: self.margin,
-            quiet: self.quiet,
             what_if: self.what_if,
             recursion_limit: self.recursion_limit,
             output_file: self.get_output_path(),
@@ -334,7 +323,6 @@ impl Args {
             let loaded = toml::from_str::<Args>(&loaded_config_text)?;
 
             hack!(mut args, loaded, confirm_exit, matches); //: false,
-            hack!(mut args, loaded, quiet, matches); //: false,
             hack!(mut args, loaded, what_if, matches); //: false,
             hack!(mut args, loaded, language, matches); //: None,
             hack!(mut args, loaded, recursion_limit, matches); //: 4,
@@ -381,7 +369,6 @@ impl Default for Args {
             files: Default::default(),
             save_config: None,
             confirm_exit: false,
-            quiet: false,
             what_if: false,
             language: None,
             config: None,
@@ -399,7 +386,7 @@ impl Default for Args {
             log: {
                 #[cfg(debug_assertions)]
                 {
-                    LogLevel::Trace
+                    LogLevel::Warn
                 }
 
                 #[cfg(not(debug_assertions))]

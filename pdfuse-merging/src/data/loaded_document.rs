@@ -11,12 +11,12 @@ use crate::error::{DocumentLoadError, LibreConversionError};
 
 #[derive(Debug)]
 pub struct LoadedDocument {
-    data: Document,
+    data: Box<Document>,
     source_path: PathBuf,
 }
 impl From<LoadedDocument> for Document {
     fn from(value: LoadedDocument) -> Self {
-        value.data
+        *value.data
     }
 }
 impl Display for LoadedDocument {
@@ -73,7 +73,7 @@ impl LoadedDocument {
     pub fn load_pdf(path: &Path) -> Result<LoadedDocument, DocumentLoadError> {
         Document::load(path)
             .map(|data| LoadedDocument {
-                data,
+                data: Box::new(data),
                 source_path: path.to_path_buf(),
             })
             .map_err(Into::into)

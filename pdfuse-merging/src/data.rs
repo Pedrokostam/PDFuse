@@ -119,12 +119,12 @@ fn run_in_parallel_with_libre(
     let guide = SizeGuide::new(&loaded_images_pdfs, parameters);
 
     let images_and_pdfs: Vec<Indexed<Result<Document, DocumentLoadError>>> =
-        parallel_documentize(parameters, &guide, loaded_images_pdfs, &multi_progress);
+        parallel_documentize(parameters, &guide, loaded_images_pdfs, multi_progress);
 
     // join the parallel thread now, after converting all images
     let converted_documents = optional_thread.get_converted_data();
     let loaded_documents =
-        parallel_documentize(parameters, &guide, converted_documents, &multi_progress);
+        parallel_documentize(parameters, &guide, converted_documents, multi_progress);
 
     let mut all_items: Vec<IndexedPdfResult<Document>> = images_and_pdfs
         .into_iter()

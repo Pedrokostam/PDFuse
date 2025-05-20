@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use image::{DynamicImage, ImageReader};
 
 pub struct LoadedImage {
-    image: DynamicImage,
+    image: Box<DynamicImage>,
     source_path: PathBuf,
 }
 impl From<LoadedImage> for DynamicImage {
@@ -16,7 +16,7 @@ impl LoadedImage {
         self.image.width()
     }
     pub fn into_parts(self) -> (DynamicImage, PathBuf) {
-        (self.image, self.source_path)
+        (*self.image, self.source_path)
     }
     pub fn height(&self) -> u32 {
         self.image.height()
@@ -31,7 +31,7 @@ impl LoadedImage {
             .decode()
             .expect("Format should be already successfully detected");
         Ok(LoadedImage {
-            image: decoded_image,
+            image: Box::new(decoded_image),
             source_path: path.as_ref().to_path_buf(),
         })
     }

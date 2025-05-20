@@ -9,7 +9,6 @@ use crate::{errors::ConfigError, Args, SourcePath};
 #[derive(Debug,Clone,Default)]
 pub struct Parameters{
     pub confirm_exit: bool,
-    pub quiet: bool,
     pub what_if: bool,
     pub recursion_limit: usize,
     pub image_page_fallback_size: PageSize,
