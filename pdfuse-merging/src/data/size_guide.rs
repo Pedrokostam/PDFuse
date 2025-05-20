@@ -8,8 +8,20 @@ use super::{Data, PdfResult};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum GuideRequirement {
+    /// Two cases:
+    /// <ul>
+    ///     <li>There are only images and/or PDFs.</li>
+    ///     <li>Fallback size is forced.</li>
+    /// </ul>
+    /// PDFs are ignored, since it easy to get their size.
     SizeInformationNotNeeded,
+    /// There are libre documents <b>before</b> images and fallback size is not forced.
     WaitForLibreConversion,
+    /// There are libre docuements, but their size will not affect images. Two cases:
+    /// <ul>
+    ///     <li>No libre documents are before images.</li>
+    ///     <li>Fallback size is forced.</li>
+    /// </ul>
     RunInParallelWithLibreConversion,
 }
 #[derive(Clone, Debug)]
@@ -25,37 +37,43 @@ impl SizeGuide {
         if parameters.force_image_page_fallback_size {
             return GuideRequirement::SizeInformationNotNeeded;
         }
-        let mut document_after_image = false;
+        let mut document_before_image = false;
         let mut has_any_image = false;
-        let mut is_previous_element_image = false;
+        let mut has_any_document = false;
+        let mut is_previous_element_document = false;
         for path in source_paths.iter().map(|p| p.value()) {
             match path {
                 SourcePath::Image(_) => {
                     has_any_image = true;
-                    is_previous_element_image = true;
+                    document_before_image |= is_previous_element_document;
+                    is_previous_element_document = false;
                 }
                 SourcePath::Pdf(_) => {
-                    is_previous_element_image = false;
+                    // skip
+                    is_previous_element_document = false;
                 }
                 SourcePath::LibreDocument(_) => {
-                    document_after_image |= is_previous_element_image;
-                    is_previous_element_image = false;
+                    is_previous_element_document = true;
+                    has_any_document = true;
                 }
             }
         }
-        match (has_any_image, document_after_image) {
-            (false, _) => GuideRequirement::SizeInformationNotNeeded,
-            (true, true) => GuideRequirement::WaitForLibreConversion,
-            (true, false) => GuideRequirement::RunInParallelWithLibreConversion,
+        println! {"{has_any_image:?},{document_before_image:?}"};
+        match (has_any_image, has_any_document, document_before_image) {
+            // No images, no worry
+            (false, _, _) => GuideRequirement::SizeInformationNotNeeded,
+            // No documents, no worry
+            (true, false, _) => GuideRequirement::SizeInformationNotNeeded,
+            // Docs before images
+            (true, true, true) => GuideRequirement::WaitForLibreConversion,
+            // Docs, but not affecting
+            (true, _, false) => GuideRequirement::RunInParallelWithLibreConversion,
         }
     }
 
     /// Creates a new [`SizeGuide`].\
-    /// pdfs: slice with all pdfs (converted beforehand or not) that will be needed for the guide.
-    pub fn new(
-        all_data: &[Indexed<PdfResult<Data>>],
-        parameters: &Parameters,
-    ) -> Self {
+    /// all_data: slice with all pdfs (converted beforehand or not) that will be needed for the guide.
+    pub fn new(all_data: &[Indexed<PdfResult<Data>>], parameters: &Parameters) -> Self {
         let fallback = parameters.image_page_fallback_size.to_custom_size();
         if parameters.force_image_page_fallback_size {
             return SizeGuide {
@@ -138,8 +156,17 @@ mod tests {
     }
 
     #[test]
+    fn test_can_create_guide_only_images_and_pdfs() {
+        let source_paths = indexise(&[pdf(), image(), image(), image()]);
+        assert_eq!(
+            SizeGuide::need_to_wait_for_pdf_threads(&source_paths, &params()),
+            GuideRequirement::SizeInformationNotNeeded
+        )
+    }
+
+    #[test]
     fn test_can_create_guide_docs_after_images() {
-        let source_paths = indexise(&[image(), image(), image(), libre()]);
+        let source_paths = indexise(&[libre(), image(), image(), image()]);
         assert_eq!(
             SizeGuide::need_to_wait_for_pdf_threads(&source_paths, &params()),
             GuideRequirement::WaitForLibreConversion
@@ -147,8 +174,17 @@ mod tests {
     }
 
     #[test]
+    fn test_can_create_guide_docs_after_images_forced_fallback() {
+        let source_paths = indexise(&[libre(), image(), image(), image()]);
+        assert_eq!(
+            SizeGuide::need_to_wait_for_pdf_threads(&source_paths,&Parameters { force_image_page_fallback_size:true,..Default::default()} ),
+            GuideRequirement::SizeInformationNotNeeded
+        )
+    }
+
+    #[test]
     fn test_can_create_guide_pdf_after_images() {
-        let source_paths = indexise(&[image(), image(), image(), pdf()]);
+        let source_paths = indexise(&[image(), image(), image(), libre()]);
         assert_eq!(
             SizeGuide::need_to_wait_for_pdf_threads(&source_paths, &params()),
             GuideRequirement::RunInParallelWithLibreConversion

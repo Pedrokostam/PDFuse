@@ -53,7 +53,7 @@ fn dynamic_to_pdf(image: DynamicImage) -> Result<RawImage, ImageLoadError> {
         DynamicImage::ImageRgba32F(imbuffer) => Ok(RawImageData::F32(imbuffer.into_raw())),
         _ => Err(ImageLoadError::UnknownPixelType),
     }?;
-    debug!("Data format: {data_format:?}");
+    // debug!("Data format: {data_format:?}");
     Ok(RawImage {
         width,
         height,
@@ -170,7 +170,7 @@ impl Imager {
         let image_id = self.document.add_image(&pdf_image);
         let scale = page_with_margins.fit_size(&image_size);
         let translation = get_image_translation(page_size, image_size * scale, self.margin);
-        debug!("{scale}");
+        // debug!("{scale}");
         let image_contents = printpdf::Op::UseXobject {
             id: image_id,
             transform: printpdf::XObjectTransform {

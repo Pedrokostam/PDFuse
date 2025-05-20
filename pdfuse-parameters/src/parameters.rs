@@ -5,6 +5,7 @@ use pdfuse_utils::Indexed;
 
 use crate::{errors::ConfigError, Args, SourcePath};
 
+/// Parameters used during conversion, creation, and merging of PDFs.
 #[derive(Debug,Clone,Default)]
 pub struct Parameters{
     pub confirm_exit: bool,
@@ -21,12 +22,15 @@ pub struct Parameters{
     pub libreoffice_path: Option<PathBuf>,
     pub output_file: String,
 }
+
+/// Parameters for operation of the main app, with paths to process.
 #[derive(Debug)]
 pub struct ParametersWithPaths{
     pub files:Vec<Indexed<SourcePath>>,
     pub parameters:Parameters
 }
 unsafe impl Send for ParametersWithPaths{}
+
 impl ParametersWithPaths{
     pub fn parse()->Result<Self,ConfigError>{
         let a = Args::create()?;

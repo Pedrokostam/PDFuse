@@ -10,7 +10,9 @@ pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
 pub use loaded_image::LoadedImage;
 use pdfuse_parameters::{
-    source_path::display_path, Parameters, SourcePath::{self, Image, LibreDocument, Pdf}
+    source_path::display_path,
+    Parameters,
+    SourcePath::{self, Image, LibreDocument, Pdf},
 };
 
 use crate::DocumentLoadError;
@@ -85,6 +87,8 @@ fn split_paths(sources: Vec<Indexed<SourcePath>>) -> SplitPathsResult {
     }
     SplitPathsResult(images_to_load, pdfs_to_load, documents_to_pdf)
 }
+
+/// Like <code>run_in_parallel_with_libre</code> but when there are no documents or if the fallback size is forced.
 fn size_information_not_needed(
     loaded_images: Vec<IndexedPdfResult<Data>>,
     loaded_pdfs: Vec<IndexedPdfResult<Data>>,
@@ -100,8 +104,9 @@ fn size_information_not_needed(
         multi_progress,
     )
 }
-/// Images (if any) do not need to rely on libre documents' sizes
-/// It's possible to start conversion while the libre thread is running
+/// Images (if any) do not need to rely on libre documents' sizes.
+/// 
+/// It's possible to start image conversion while the libre thread is running
 fn run_in_parallel_with_libre(
     loaded_images: Vec<IndexedPdfResult<Data>>,
     loaded_pdfs: Vec<IndexedPdfResult<Data>>,
@@ -130,8 +135,9 @@ fn run_in_parallel_with_libre(
     all_items
 }
 
-/// Images need to rely on libre documents' sizes
-/// Have to wait until libre conversion is done
+/// Images need to rely on libre documents' sizes.
+/// 
+/// Image conversion has to wait until libre conversion finishes.
 fn wait_for_libre(
     loaded_images: Vec<IndexedPdfResult<Data>>,
     loaded_pdfs: Vec<IndexedPdfResult<Data>>,
@@ -181,7 +187,7 @@ fn parallel_documentize(
                             parameters.image_lossless_compression,
                         );
                         let path = display_path(loaded_image.source_path());
-                        match imager.add_image(loaded_image){
+                        match imager.add_image(loaded_image) {
                             Ok(_) => (),
                             Err(e) => log::error!("{e} - {path}"),
                         }
@@ -285,12 +291,8 @@ where
                 .into_values()
                 .map(|object_id| {
                     if !first {
-                        let bookmark = Bookmark::new(
-                            format!("Page_{pagenum}"),
-                            [0.0, 0.0, 1.0],
-                            0,
-                            object_id,
-                        );
+                        let bookmark =
+                            Bookmark::new(format!("Page_{pagenum}"), [0.0, 0.0, 1.0], 0, object_id);
                         document.add_bookmark(bookmark, None);
                         first = true;
                         pagenum += 1;
