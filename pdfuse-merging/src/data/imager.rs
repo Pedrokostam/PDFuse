@@ -205,16 +205,17 @@ fn adjust_to_dpi(image: LoadedImage, draw_area: CustomSize, dpi: f64) -> Dynamic
         debug_t!("debug.excess_dpi", dpi = target_dpi);
         return image.into();
     }
+    let (dynamic_image, path_buf): (DynamicImage, std::path::PathBuf) = image.into_parts();
     debug_t!(
         "debug.resizing_image",
-        name = image.source_path().file_name().unwrap().to_string_lossy(),
-        width = image.width(),
-        height = image.height(),
+        name = path_buf.file_name().unwrap().to_string_lossy(),
+        width = dynamic_image.width(),
+        height = dynamic_image.height(),
         target_width = horizontal_pixel_max as u32,
         target_height = vertical_pixel_max as u32,
         scale = scale
     );
-    image.to_dynamic_image().resize(
+    dynamic_image.resize(
         horizontal_pixel_max as u32,
         vertical_pixel_max as u32,
         FilterType::Lanczos3,
