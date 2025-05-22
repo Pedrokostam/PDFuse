@@ -1,7 +1,8 @@
 use std::fmt::Display;
 use std::path::PathBuf;
 
-use crate::ParametersWithPaths;
+use crate::commandline_help::*;
+use crate::{ParametersWithPaths};
 use clap::builder::{styling, OsStr, Str};
 use clap::error::ErrorKind;
 use clap::{
@@ -10,7 +11,6 @@ use clap::{
 use indoc::indoc;
 use pdfuse_sizing::{CustomSize, IsoPaper, PageSize};
 use serde::{Deserialize, Serialize};
-use crate::commandline_arguments_help;
 
 const DEFAULT_CONFIG_PATH: &str = "config_auto.toml";
 
@@ -40,6 +40,8 @@ fn get_default_libre() -> Vec<String> {
 
 #[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize, PartialEq, Eq)]
 pub enum LogLevel {
+    /// Log nothing.
+    Off,
     /// Log only errors.
     Error,
     /// Log warnings and errors.
@@ -51,6 +53,7 @@ pub enum LogLevel {
 impl From<LogLevel> for log::LevelFilter {
     fn from(value: LogLevel) -> Self {
         match value {
+            LogLevel::Off => log::LevelFilter::Off,
             LogLevel::Error => log::LevelFilter::Error,
             LogLevel::Warn => log::LevelFilter::Warn,
             LogLevel::Debug => log::LevelFilter::Trace,
@@ -66,11 +69,15 @@ impl Display for LogLevel {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct Args {
+    #[cfg_attr(not(test), serde(skip))]
     pub files: Vec<String>,
+    #[cfg_attr(not(test), serde(skip))]
     pub save_config: Option<String>,
     pub confirm_exit: bool,
+    #[cfg_attr(not(test), serde(skip))]
     pub what_if: bool,
     pub language: Option<String>,
+    #[cfg_attr(not(test), serde(skip))]
     pub config: Option<String>,
     pub recursion_limit: usize,
     pub image_page_fallback_size: PageSize,
@@ -83,6 +90,7 @@ pub struct Args {
     pub alphabetic_file_sorting: bool,
     pub libreoffice_path: Vec<String>,
     pub output_directory: String,
+    #[cfg_attr(not(test), serde(skip))]
     pub output_file: Option<String>,
 }
 
@@ -142,55 +150,50 @@ impl Default for Args {
 pub fn get_command() -> Command {
     let def = Args::default();
     let files = Arg::new("files")
-    .required(true)
-    .num_args(1..)
-        .help("Directories and files to be processed.")
-        .long_help(indoc!(r"
-            Directories and files to be processed.
-            
-            Both directory paths and file paths are acceptable.
-            If a directory is provided PDFuse will look for applicable file recursively until depth of --recursion-limit is reached.
-        "));
+        .required(true)
+        .num_args(1..)
+        .help(FILES_HELP)
+        .long_help(FILES_LONG_HELP);
 
     let save_config = Arg::new("save_config")
         .long("save-config")
         .short('s')
         .value_name("FILEPATH")
         .value_hint(ValueHint::FilePath)
-        .help("Save input parameters as a TOML configuration file or send to stdout with `-`.");
+        .help(SAVE_CONFIG_HELP);
 
     let confirm_exit = Arg::new("confirm_exit")
         .long("confirm-exit")
         .action(ArgAction::SetTrue)
         .default_value(def.confirm_exit.to_string())
-        .help("Require user input before closing the app.");
+        .help(CONFIRM_EXIT_HELP);
 
     let what_if = Arg::new("what_if")
         .long("whatif")
         .alias("whatif")
         .action(ArgAction::SetTrue)
         .default_value(def.what_if.to_string())
-        .help("Dry run: run the program without outputting files.");
+        .help(WHAT_IF_HELP);
 
     let language = Arg::new("language")
         .short('l')
         .long("language")
         .value_name("IDENTIFIER")
-        .help("Specify a language file identifier.");
+        .help(LANGUAGE_HELP);
 
     let config = Arg::new("config")
         .short('c')
         .long("config")
         .value_name("PATH_TO_CONFIG")
         .value_hint(ValueHint::FilePath)
-        .help("Path to a custom configuration file.");
+        .help(CONFIG_HELP);
 
     let recursion_limit = Arg::new("recursion_limit")
         .long("recursion-limit")
         .default_value(def.recursion_limit.to_string())
         .value_parser(clap::value_parser!(usize))
-        .help("Recursion depth limit for directories.")
-        .long_help("Recursion depth limit for directories.\nLimit of 0 mean only the files in the specified directory are scanned.\nLimit of 1 means the files in any immediate subfolders are also scanned, and so on.");
+        .help(RECURSION_LIMIT_HELP)
+        .long_help(RECURSION_LIMIT_LONG_HELP);
 
     let image_page_fallback_size = Arg::new("image_page_fallback_size")
         .short('p')
@@ -198,55 +201,35 @@ pub fn get_command() -> Command {
         .value_name("PAGE_SIZE")
         .default_value(def.image_page_fallback_size.to_string())
         .value_parser(PageSize::try_from_string)
-        .help("Fallback page size when adding images.")
-        .long_help(indoc!(
-            r"
-                Fallback page size when adding images.
-
-                Images will usually use the same page size as the preceding document or PDF.
-                If nothing precedes an image it will be placed on page size equal to the fallback size.
-
-                Information about how to express a page size can be found in the SIZING section.
-            "
-        ));
+        .help(IMAGE_PAGE_FALLBACK_SIZE_HELP)
+        .long_help(IMAGE_PAGE_FALLBACK_SIZE_LONG_HELP);
 
     let dpi = Arg::new("dpi")
         .long("dpi")
         .default_value(def.dpi.to_string())
         .value_parser(clap::value_parser!(u16))
-        .help("DPI used when adding images.");
+        .help(DPI_HELP);
 
     let quality = Arg::new("quality")
         .long("quality")
         .default_value(def.quality.to_string())
         .value_parser(clap::value_parser!(u8))
-        .help("Quality of JPEG image compression.")
-        .long_help(indoc!(
-            r"
-                Quality of JPEG image compression.
-                It is expressed as percents - valid range: 1 to 100
-            "
-        ));
+        .help(QUALITY_HELP)
+        .long_help(QUALITY_LONG_HELP);
 
     let lossless = Arg::new("lossless")
         .long("lossless")
         .action(ArgAction::SetTrue)
         .default_value("false")
-        .help("Use only lossless compression for images.")
-        .long_help(indoc!(
-            "
-                Use only lossless compression for images.\
-                \n
-                \x1b[1m\x1b[5mWarning!\x1b[0m This will dramatically increase the size of the output file!
-            "
-        ));
+        .help(LOSSLESS_HELP)
+        .long_help(LOSSLESS_LONG_HELP);
 
     let log = Arg::new("log")
         .long("log")
         .default_value(def.log.to_string())
         .ignore_case(true)
         .value_parser(clap::builder::EnumValueParser::<LogLevel>::new())
-        .help("Controls which messages are logged into console.");
+        .help(LOG_HELP);
 
     let margin = Arg::new("margin")
         .short('m')
@@ -254,41 +237,28 @@ pub fn get_command() -> Command {
         .value_name("MARGIN")
         .default_value(def.margin.to_string())
         .value_parser(CustomSize::try_from_string)
-        .help("Margin for image pages.");
+        .help(MARGIN_HELP);
 
     let force_image_page_fallback_size = Arg::new("force_image_page_fallback_size")
         .long("force-image-page-fallback-size")
         .action(ArgAction::SetTrue)
         .default_value("false")
-        .help("Force the fallback size for image pages, overriding other PDFs.");
+        .help(FORCE_IMAGE_PAGE_FALLBACK_SIZE_HELP);
 
     let alphabetic_file_sorting = Arg::new("alphabetic_file_sorting")
         .long("alphabetic-file-sorting")
         .action(ArgAction::SetTrue)
         .default_value(def.alphabetic_file_sorting.to_string())
-        .help("Sort paths alphabetically, ignoring input order.")
-        .long_help(indoc!(
-            r"
-                Sort paths alphabetically, ignoring input order.
-
-                By default files will be merged in the same order as they were specified.
-                When this flag is enabled, after collecting all files they will be sorted by their paths.
-                Useful when drag&dropping items onto the executable (as order in drag&drop may not be obvious).
-            "));
+        .help(ALPHABETIC_FILE_SORTING_HELP)
+        .long_help(ALPHABETIC_FILE_SORTING_LONG_HELP);
 
     let libreoffice_path = Arg::new("libreoffice_path")
         .long("libreoffice-path")
         .value_name("LIBREOFFICE_PATH")
         .num_args(1..)
         .default_values(def.libreoffice_path)
-        .help("Paths to LibreOffice executables for document conversion.")
-        .long_help(indoc!(
-            r"
-                Paths to LibreOffice executables for document conversion.
-                
-                If the paths are not available, LibreOffice conversion will be disabled.
-            "
-        ));
+        .help(LIBREOFFICE_PATH_HELP)
+        .long_help(LIBREOFFICE_PATH_LONG_HELP);
 
     let output_directory = Arg::new("output_directory")
         .short('d')
@@ -296,29 +266,16 @@ pub fn get_command() -> Command {
         .value_name("OUTPUT_DIRECTORY")
         .value_hint(ValueHint::DirPath)
         .default_value(def.output_directory.to_string())
-        .help("Directory for output files.")
-        .long_help(indoc!(
-            r"
-                Directory for output files.
-
-                The output file will have a unique name based on the current date time.
-                The exact name of the file also depends on chosen language.
-            "
-        ));
+        .help(OUTPUT_DIRECTORY_HELP)
+        .long_help(OUTPUT_DIRECTORY_LONG_HELP);
 
     let output_file = Arg::new("output_file")
         .short('o')
         .long("output-file")
         .value_name("OUTPUT_FILEPATH")
         .value_hint(ValueHint::FilePath)
-        .help("Path for the output file.")
-        .long_help(indoc!(
-            r"
-                Path for the output file.
-
-                The output will try to overwrite any existing file.
-            "
-        ));
+        .help(OUTPUT_FILE_HELP)
+        .long_help(OUTPUT_FILE_LONG_HELP);
 
     let group_output = ArgGroup::new("Output")
         .arg(output_file.get_id())
@@ -336,42 +293,11 @@ pub fn get_command() -> Command {
     Command::new("PDFuse")
         .author("Maciej Krosta")
         .version("1.0")
-        .about(
-            "Command-line tool to concatenate images, documents and PDFs into a single PDF file.",
-        )
+        .about(ABOUT)
         .color(clap::ColorChoice::Auto)
         .arg_required_else_help(true)
-        .after_long_help(indoc!(
-            r"
-            SIZING
-
-            Sizes can be expressed in two ways:
-            
-             1) With one or two dimensions (width by height) separated by at least one 'x', space or '-'
-                 • If only width is specified, height is given the same value.
-                 • Supported units (units can be mixed:
-                     - Meters m
-                     - Millimers mm
-                     - Centimeters cm
-                     - Inches in
-                     - Points pt
-                 • Examples:
-                     - 5 mm x 7 mm
-                     - 5mm x 7mm
-                     - 5mmx7mm
-                     - 5mm-7mm
-                     - 5mm 7mm
-                     - 1in
-                     - 5mm x 2cm
-             2) As an ISO sheet, which will be then translated to standard dimensions.
-                 • Supported formats A, B, C
-                 • Supported ranks 0-13
-                 • Examples: A4, B5, C7
-                     - A4 
-                     - B5 
-                     - C7 
-        "
-        ))
+        .after_help(AFTER_HELP)
+        .after_long_help(AFTER_LONG_HELP)
         .styles(STYLES)
         .arg(files)
         .arg(alphabetic_file_sorting)
@@ -511,7 +437,7 @@ mod tests {
             dpi: 420,
             quality: 13,
             lossless: !Args::default().lossless,
-            log: LogLevel::Debug,
+            log: LogLevel::Off,
             margin: IsoPaper::c(4).into(),
             force_image_page_fallback_size: !Args::default().force_image_page_fallback_size,
             libreoffice_path: vec!["none".to_owned()],
@@ -561,7 +487,7 @@ mod tests {
             "--config",
             "custom_config.toml",
             "--log",
-            "debug",
+            "off",
             "--libreoffice-path",
             "different_path",
         ];
