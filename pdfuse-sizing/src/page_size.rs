@@ -105,3 +105,60 @@ impl Default for PageSize {
         PageSize::Standard(IsoPaper::default())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_fun_call)]
+
+    use super::*;
+    #[test]
+    fn parsing_custom() {
+        let test_vals: Vec<(&'static str, PageSize)> = vec![
+            (
+                "12.3437m-22.3437m",
+                CustomSize::from_meters(12.343737, 22.343737).into(),
+            ),
+            (
+                " 12.3437m x 22.3437m ",
+                CustomSize::from_meters(12.3437, 22.3437).into(),
+            ),
+            (
+                " 12.3437m x 22.3437m ",
+                CustomSize::from_meters(12.3437, 22.3437).into(),
+            ),
+            (" 12.3437m ", CustomSize::from_meters(12.3437, 12.3437).into()),
+            (
+                " 12.3437 x 22.3437m ",
+                CustomSize::from_meters(12.3437, 22.3437).into(),
+            ),
+            (
+                " 12.3437m x 22.3437 ",
+                CustomSize::from_meters(12.3437, 22.3437).into(),
+            ),
+            (
+                " 12.3437  22.3437m ",
+                CustomSize::from_meters(12.3437, 22.3437).into(),
+            ),
+            (
+                " 12.3437 mm 22.3437pt ",
+                CustomSize {
+                    horizontal: Length::from_millimeters(12.3437),
+                    vertical: Length::from_points(22.3437),
+                }.into(),
+            ),
+            (
+                " 12.3437 mm x 22.3437pt ",
+                CustomSize {
+                    horizontal: Length::from_millimeters(12.3437),
+                    vertical: Length::from_points(22.3437),
+                }.into(),
+            ),
+            ("12cm", CustomSize::from_centimeters(12, 12).into()),
+        ];
+        for (text, paper) in test_vals {
+            let parsed =
+                PageSize::try_from_string(text).expect(&format!("Failed parsing '{text}'"));
+            assert_eq!(parsed, paper, "{text}");
+        }
+    }
+}

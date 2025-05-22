@@ -25,5 +25,5 @@ error:
   no_valid_files: 'No valid files detected in the input paths'
   invalid_config_path: 'Malformed file path - %{path}'
   missing_config_file: 'No configuration file at the given path - %{path}'
-  image_invalid_format: 'Unrecognized image format - %{path}'
-  image_invalid_pixel_type: 'Unrecognized pixel format - %{path}'
+  image_invalid_format: 'Unrecognized image format.'
+  image_invalid_pixel_type: 'Unrecognized pixel format.'

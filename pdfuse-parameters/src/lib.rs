@@ -1,8 +1,10 @@
 mod commandline_arguments;
+mod commandline_arguments_help;
 pub mod errors;
 pub mod file_finder;
 pub mod invalid_source_type;
 pub mod source_path;
+pub mod commandline;
 mod parameters;
 mod paths;
 pub use commandline_arguments::Args;

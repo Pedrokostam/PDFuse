@@ -9,13 +9,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::LengthParseError;
 
-use super::{
-    iso_paper::IsoPaper, page_size::PageSize, size::Size, unit::Unit, length::Length,
-};
+use super::{iso_paper::IsoPaper, length::Length, page_size::PageSize, size::Size, unit::Unit};
 
-#[derive(Debug, PartialEq, Clone, Copy,Serialize,Deserialize)]
-#[serde(try_from ="String")]
-#[serde(into ="String")]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+#[serde(try_from = "String")]
+#[serde(into = "String")]
 pub struct CustomSize {
     pub horizontal: Length,
     pub vertical: Length,
@@ -35,9 +33,12 @@ where
     }
 }
 
-impl Default for CustomSize{
+impl Default for CustomSize {
     fn default() -> Self {
-        Self { horizontal: Length::zero(), vertical: Length::zero() }
+        Self {
+            horizontal: Length::zero(),
+            vertical: Length::zero(),
+        }
     }
 }
 
@@ -57,7 +58,7 @@ impl TryFrom<String> for CustomSize {
     }
 }
 
-impl From<CustomSize> for String{
+impl From<CustomSize> for String {
     fn from(value: CustomSize) -> Self {
         value.to_string()
     }
@@ -302,11 +303,12 @@ mod tests {
                     vertical: Length::from_points(22.3437),
                 },
             ),
+            ("12cm", CustomSize::from_centimeters(12, 12)),
         ];
         for (text, paper) in test_vals {
             let parsed =
-                CustomSize::try_from_string(text).expect(&format!("Failed parsing '{}'", text));
-            assert_eq!(parsed, paper, "{}", text);
+                CustomSize::try_from_string(text).expect(&format!("Failed parsing '{text}'"));
+            assert_eq!(parsed, paper, "{text}");
         }
     }
 }

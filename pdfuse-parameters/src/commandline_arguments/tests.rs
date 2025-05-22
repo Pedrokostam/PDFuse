@@ -7,7 +7,6 @@ fn get_changed_args() -> Args {
         files: vec![],
         save_config: None,
         confirm_exit: !def.confirm_exit,
-        quiet: !def.quiet,
         what_if: !def.what_if,
         language: Some("de".to_owned()),
         config: None,
@@ -15,7 +14,7 @@ fn get_changed_args() -> Args {
         image_page_fallback_size: IsoPaper::c(10).into(),
         dpi: 1337,
         quality: 13,
-        log: LogLevel::Info,
+        log: LogLevel::Debug,
         lossless: true,
         margin: CustomSize::from_inches(0.5, 0.5),
         force_image_page_fallback_size: !def.force_image_page_fallback_size,
@@ -74,7 +73,6 @@ fn find_changes(a: &Args, b: &Args) -> Vec<Diff> {
         a,
         b,
         confirm_exit,
-        quiet,
         what_if,
         language,
         recursion_limit,
@@ -145,10 +143,10 @@ fn loaded_args_triumph_over_default() {
 fn implicit_config_load() {
     let config_path = get_path_test_config();
     let implicit_path = get_path(DEFAULT_CONFIG_PATH);
-    fs::copy(config_path, &implicit_path);
+    fs::copy(config_path, &implicit_path).expect("it's just a test, bro");
     let default = Args::default();
     let a = Args::create_from(fake_args![]).unwrap();
-    fs::remove_file(&implicit_path);
+    fs::remove_file(&implicit_path).expect("it's just a test, bro");
     assert_ne!(a.dpi, default.dpi);
     assert_ne!(a.margin, default.margin);
 }
