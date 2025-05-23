@@ -1,14 +1,12 @@
 use std::fmt::Display;
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
-use crate::commandline_help::*;
-use crate::ParametersWithPaths;
-use clap::builder::{styling, OsStr, Str};
-use clap::error::ErrorKind;
-use clap::{
-    arg, command, value_parser, Arg, ArgAction, ArgGroup, ArgMatches, Command, ValueEnum, ValueHint,
-};
-use indoc::indoc;
+use crate::errors::ConfigError;
+use crate::{commandline_help::*, path_to_string};
+use clap::builder::styling;
+use clap::{Arg, ArgAction, ArgGroup, ArgMatches, Command, ValueEnum, ValueHint};
 use pdfuse_sizing::{CustomSize, IsoPaper, PageSize};
 use serde::{Deserialize, Serialize};
 
@@ -70,7 +68,7 @@ impl Display for LogLevel {
 #[serde(default)]
 pub struct Args {
     #[cfg_attr(not(test), serde(skip))]
-    pub files: Vec<String>,
+    pub files: Vec<PathBuf>,
     #[cfg_attr(not(test), serde(skip))]
     pub save_config: Option<String>,
     pub confirm_exit: bool,
@@ -78,7 +76,7 @@ pub struct Args {
     pub what_if: bool,
     pub language: Option<String>,
     #[cfg_attr(not(test), serde(skip))]
-    pub config: Option<String>,
+    pub config: Option<PathBuf>,
     pub recursion_limit: usize,
     pub image_page_fallback_size: PageSize,
     pub dpi: u16,
@@ -128,6 +126,25 @@ impl Default for Args {
     }
 }
 
+impl Args {
+    pub fn from_toml_file(path: &Path) -> Result<Args, ConfigError> {
+        let contents = fs::read_to_string(path)?;
+        Ok(toml::from_str::<Args>(&contents)?)
+    }
+
+    /// Saves config, only if the argument --save-config was specified
+    pub fn save_config(&self) -> Result<(), ConfigError> {
+        if let Some(destination) = &self.save_config {
+            let toml_string = toml::to_string(self)?;
+            if destination == "-" {
+                print!("{toml_string}");
+            } else {
+                fs::write(Path::new(&destination), toml_string)?;
+            }
+        } 
+         Ok(())
+    }
+}
 // \x1b[0m   -> reset all styles
 // \x1b[1m   -> start bold
 // \x1b[2m   -> start dim
@@ -323,7 +340,7 @@ pub fn get_command() -> Command {
         .hide_short_help(true)
         .action(ArgAction::SetTrue);
 
-    let no_implicit_config = Arg::new("no_implicit_config")
+    let no_implicit_config = Arg::new("no_config")
         .long("no-config")
         .alias("noconfig")
         .alias("noconfig")
@@ -419,11 +436,45 @@ macro_rules! set_if_present_optional {
         }
     };
 }
+fn get_preset_config(matches: &ArgMatches) -> Result<Option<Args>, ConfigError> {
+    if matches.get_flag("no_config") {
+        return Ok(None);
+    }
+    let (config_path, is_explicit_config): (PathBuf, bool) =
+        match matches.get_one::<PathBuf>("config") {
+            Some(pbuf) => (pbuf.to_owned(), true),
+            None => (PathBuf::from_str(DEFAULT_CONFIG_PATH).unwrap(), false),
+        };
+    // throw if config is specified but missing
+    if !&config_path.exists() && is_explicit_config {
+        Err(ConfigError::MissingConfigError(path_to_string(
+            &config_path,
+        )))?
+    }
+    let preset = Args::from_toml_file(&config_path)?;
+    Ok(Some(preset))
+}
+pub fn get_args() -> Result<Args, ConfigError> {
+    let cmd = get_command();
+    let matches = cmd.get_matches();
+    let preset = get_preset_config(&matches)?;
+    Ok(get_args_impl(matches, preset))
+}
 
-pub fn get_args(matches: ArgMatches, base: Option<Args>) -> Args {
+pub fn get_args_from<I, T>(items: I) -> Result<Args, ConfigError> 
+ where
+        I: IntoIterator<Item = T> + std::fmt::Debug,
+        T: Into<std::ffi::OsString> + Clone{
+    let cmd = get_command();
+    let matches = cmd.get_matches_from(items);
+    let preset = get_preset_config(&matches)?;
+    Ok(get_args_impl(matches, preset))
+}
+
+fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
     let mut base = base.unwrap_or_default();
     base.files = matches
-        .get_many::<String>("files")
+        .get_many::<PathBuf>("files")
         .unwrap()
         .cloned()
         .collect();
@@ -441,11 +492,16 @@ pub fn get_args(matches: ArgMatches, base: Option<Args>) -> Args {
     set_if_present_optional!(matches, base, language, String);
 
     // dont set config - at this point it is useless
-    // if matches.get_flag("no_implicit_config") {
+    // if matches.get_flag("no_config") {
     //     base.config = None;
     // } else {
     //     set_if_present_optional!(matches, base, config, String);
     // }
+    // unless we are testing
+    #[cfg(test)]
+    {
+        set_if_present_optional!(matches, base, config, PathBuf);
+    }
 
     set_if_present_optional!(matches, base, output_file, String);
     set_if_present!(matches, base, output_directory, String);
@@ -477,6 +533,8 @@ pub fn get_args(matches: ArgMatches, base: Option<Args>) -> Args {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
 
     fn print_fields(args: &Args) -> Vec<String> {
@@ -494,10 +552,10 @@ mod tests {
     pub fn default_matches_default() {
         let test_file = "file";
         let def = Args {
-            files: vec![test_file.to_owned()],
+            files: vec![PathBuf::from_str(test_file).unwrap()],
             ..Default::default()
         };
-        let cmd = get_args(
+        let cmd = get_args_impl(
             get_command().get_matches_from(vec!["PDFuse", test_file]),
             None,
         );
@@ -521,12 +579,12 @@ mod tests {
     pub fn non_default_differs_default() {
         let def = Args {
             alphabetic_file_sorting: !Args::default().alphabetic_file_sorting,
-            files: vec!["A".to_owned()],
-            save_config: Some("".to_owned()),
+            files: vec![PathBuf::from_str("A").unwrap()],
+            save_config: Some("A".to_owned()),
             confirm_exit: !Args::default().confirm_exit,
             what_if: !Args::default().what_if,
             language: Some("pl".to_owned()),
-            config: Some("c.toml".to_owned()),
+            config: Some(PathBuf::from_str("A").unwrap()),
             recursion_limit: 1338,
             image_page_fallback_size: IsoPaper::c(5).into(),
             dpi: 420,
@@ -539,7 +597,7 @@ mod tests {
             output_directory: "dir".to_owned(),
             output_file: Some("".to_owned()),
         };
-        let parsed = get_args(get_command().get_matches_from(vec!["test", "feil"]), None);
+        let parsed = get_args_impl(get_command().get_matches_from(vec!["test", "feil"]), None);
         let line1 = print_fields(&def);
         let line2 = print_fields(&parsed);
         let zip = line1.into_iter().zip(line2);
@@ -549,12 +607,12 @@ mod tests {
             assert_ne!(a, b, "ERROR: {a} - {b}");
         }
     }
-    const IGNORED: &[&str] =&[
+    const IGNORED: &[&str] = &[
         "config",
         "quiet",
         "no_force_image_page_fallback_size",
         "no_lossless",
-        "no_implicit_config",
+        "no_config",
     ];
     #[test]
     pub fn default_differs_non_default() {
@@ -594,10 +652,10 @@ mod tests {
             "different_path",
         ];
         let matches = get_command().get_matches_from(arg_strings);
-        let parsed = get_args(matches.clone(), None);
+        let parsed = get_args_impl(matches.clone(), None);
         for a in cmd.get_arguments() {
             let name = a.get_id().to_string();
-            if IGNORED.contains(&name.as_ref()){
+            if IGNORED.contains(&name.as_ref()) {
                 continue;
             }
             assert!(

@@ -1,5 +1,5 @@
 use color_print::cstr;
-use indoc::indoc;
+// use indoc::indoc;
 
 pub const ABOUT: &str =
     "Command-line tool to concatenate images, documents and PDFs into a single PDF file.";
@@ -10,12 +10,12 @@ pub const AFTER_LONG_HELP: &str = cstr!(
 
 It's possible to save common settings to simplify command-line usage.
 
-By default, the app loads "config.toml" from the executable's directory. If missing, defaults are used.
+By default, the app loads "config_auto.toml" from the executable's directory. If missing, defaults are used.
 
 Use <s><i>--config</></> to load a different existing file. It can define any parameters; missing ones use defaults. Command-line options override config values.
 
 Example:
-─────config.toml─────┐
+───config_auto.toml──┐
 log = "debug"        │
 recursion_limit = 10 │
 ─────────────────────┘

@@ -50,6 +50,7 @@ pub(crate) fn is_executable(path: &Path) -> bool {
     }
     false
 }
+
 pub(crate) fn expand_path(path: &str) -> Option<String> {
     let non_home = if path.starts_with('~') {
         let home_dir = dirs::home_dir();
@@ -59,4 +60,16 @@ pub(crate) fn expand_path(path: &str) -> Option<String> {
     };
     let output: Option<String> = expand_vars(&non_home);
     output
+}
+
+
+pub fn path_to_string(path: impl AsRef<Path>) -> String {
+    let p = path.as_ref();
+    path_to_string_impl(p)
+}
+
+fn path_to_string_impl(path:&Path)->String{
+    path.to_string_lossy()
+        .trim_start_matches(r"\\?\")
+        .to_string()
 }

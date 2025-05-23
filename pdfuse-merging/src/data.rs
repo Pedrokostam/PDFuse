@@ -9,9 +9,7 @@ pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
 pub use loaded_image::LoadedImage;
 use pdfuse_parameters::{
-    source_path::display_path,
-    Parameters,
-    SourcePath::{self, Image, LibreDocument, Pdf},
+    path_to_string, Parameters, SourcePath::{self, Image, LibreDocument, Pdf}
 };
 
 use crate::DocumentLoadError;
@@ -185,7 +183,7 @@ fn parallel_documentize(
                             parameters.image_quality,
                             parameters.image_lossless_compression,
                         );
-                        let path = display_path(loaded_image.source_path());
+                        let path = path_to_string(loaded_image.source_path());
                         match imager.add_image(loaded_image) {
                             Ok(_) => (),
                             Err(e) => log::error!("{e} - {path}"),

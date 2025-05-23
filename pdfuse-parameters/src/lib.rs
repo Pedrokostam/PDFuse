@@ -12,7 +12,7 @@ pub use parameters::{Parameters, ParametersWithPaths};
 pub use source_path::SourcePath;
 
 rust_i18n::i18n!();
-
+pub use paths::path_to_string;
 #[cfg(test)]
 mod tests {
     // use super::*;

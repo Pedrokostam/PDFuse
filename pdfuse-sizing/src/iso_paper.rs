@@ -252,7 +252,7 @@ mod tests {
         ];
         for (text, paper) in test_vals {
             let parsed =
-                IsoPaper::try_from_string(text).expect(&format!("Failed parsing '{}'", text));
+                IsoPaper::try_from_string(text).expect(&format!("Failed parsing '{text}'" ));
             assert_eq!(parsed, paper);
         }
     }
@@ -270,7 +270,7 @@ mod tests {
             (IsoPaper::c(6), get_custom(114, 162)),
         ];
         for (manual, custom) in vals {
-            assert_eq!(manual.to_custom_size(), custom, "{} to {}", manual, custom);
+            assert_eq!(manual.to_custom_size(), custom, "{manual} to {custom}");
         }
     }
     #[test]
@@ -284,8 +284,7 @@ mod tests {
             let parsed_iso_error = IsoPaper::try_from_string(text).expect_err("It should be wrong");
             assert_eq!(
                 parsed_iso_error, expected_error,
-                "{} to {}",
-                text, expected_error
+                "{text} to {expected_error}"
             );
         }
     }

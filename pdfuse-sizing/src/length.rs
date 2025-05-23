@@ -262,7 +262,7 @@ mod tests {
         for (text, length) in texts {
             let parsed =
                 Length::try_from_string(text).expect(&format!("Could not parse {}", &text));
-            assert_eq!(parsed, length, "{} to {}", text, length);
+            assert_eq!(parsed, length, "{text} to {length}");
         }
     }
 }

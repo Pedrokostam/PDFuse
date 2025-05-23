@@ -1,9 +1,8 @@
-use pdfuse_utils::info_t;
 rust_i18n::i18n!();
 
 fn main() {
     let cmd = pdfuse_parameters::commandline::get_command();
-    let a = pdfuse_parameters::commandline::get_args(cmd.get_matches(),None);
+    let a = pdfuse_parameters::commandline::get_args_impl(cmd.get_matches(),None);
     println!("{}",toml::to_string_pretty(&a).unwrap());
     // log::set_logger(&pdfuse_utils::CONSOLE_LOGGER).expect("Setting logger cannot fail!");
     // #[cfg(debug_assertions)]

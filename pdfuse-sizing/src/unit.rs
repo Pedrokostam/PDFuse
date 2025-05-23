@@ -116,8 +116,8 @@ mod tests {
         for (texts, unit) in vals {
             for text in texts {
                 let target = Ok(unit);
-                assert_eq!(Unit::from_string(text), target, "{}", text);
-                let pad = format!("  {}  ", text);
+                assert_eq!(Unit::from_string(text), target, "{text}");
+                let pad = format!("  {text}  ");
                 assert_eq!(Unit::from_string(&pad), target, "{}", &pad);
                 let upper = pad.to_uppercase();
                 assert_eq!(Unit::from_string(&upper), target, "{}", &upper);

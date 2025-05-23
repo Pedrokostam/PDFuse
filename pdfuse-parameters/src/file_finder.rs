@@ -66,12 +66,6 @@ fn is_valid_source(entry: &DirEntry, extensions: &[&str]) -> bool {
     }
 }
 
-fn display_path(path: impl AsRef<Path>) -> String {
-    path.as_ref()
-        .to_string_lossy()
-        .trim_start_matches(r"\\?\")
-        .to_string()
-}
 
 // #[derive(Clone, PartialEq, Debug, Eq, PartialOrd, Ord)]
 // pub struct IndexedSourcePath {

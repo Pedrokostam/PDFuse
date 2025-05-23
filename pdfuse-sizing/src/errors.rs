@@ -59,8 +59,8 @@ impl Display for IsoPaperError{
             IsoPaperError::NotIsoPage => write!(f,"Not enough data to parse."),
             IsoPaperError::NoSizeSpecified => write!(f,"Page size is not specified."),
             IsoPaperError::NoTypeSpecied => write!(f,"Page standard is not specified."),
-            IsoPaperError::InvalidSize(s) => write!(f,"Page size {} is not in the valid range: [0,13].",s),
-            IsoPaperError::InvalidType(t) => write!(f,"Page standard {} is not recognized.",t),
+            IsoPaperError::InvalidSize(s) => write!(f,"Page size {s} is not in the valid range: [0,13]."),
+            IsoPaperError::InvalidType(t) => write!(f,"Page standard {t} is not recognized."),
         }
     }
 }
@@ -79,7 +79,7 @@ impl Display for UnitParseError{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             UnitParseError::NoUnitSpecified => write!(f,"No unit was specified"),
-            UnitParseError::UnrecognizedUnit(u) => write!(f,"Text \"{}\" is not a valid",u),
+            UnitParseError::UnrecognizedUnit(u) => write!(f,"Text \"{u}\" is not a valid"),
         }
     }
 }

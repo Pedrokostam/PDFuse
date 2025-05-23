@@ -6,6 +6,7 @@ use walkdir::DirEntry;
 
 use crate::file_finder::{ALL_LIBRE_EXTENSIONS, IMAGE_EXTENSIONS, PDF_EXTENSIONS};
 use crate::invalid_source_type::InvalidSourceType;
+use crate::paths::path_to_string;
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Eq)]
 pub enum SourcePath {
@@ -58,7 +59,7 @@ impl TryFrom<DirEntry> for SourcePath {
     fn try_from(value: DirEntry) -> Result<Self, Self::Error> {
         match value.path().canonicalize() {
             Ok(c) => c.as_path().try_into(),
-            Err(_) => Err(InvalidSourceType(display_path(value.path()))),
+            Err(_) => Err(InvalidSourceType(path_to_string(value.path()))),
         }
     }
 }
@@ -76,7 +77,7 @@ impl Display for SourcePath {
         let path = match self {
             Self::Image(path) | Self::Pdf(path) | Self::LibreDocument(path) => path,
         };
-        write!(f, "{}", display_path(path))
+        write!(f, "{}", path_to_string(path))
     }
 }
 
@@ -89,7 +90,7 @@ impl SourcePath {
         let ext_str = ext.as_str();
         let canon_path = path
             .canonicalize()
-            .map_err(|_| InvalidSourceType(display_path(path)))?;
+            .map_err(|_| InvalidSourceType(path_to_string(path)))?;
         if IMAGE_EXTENSIONS.binary_search(&ext_str).is_ok() {
             return Ok(SourcePath::Image(canon_path));
         }
@@ -99,7 +100,7 @@ impl SourcePath {
         if ALL_LIBRE_EXTENSIONS.binary_search(&ext_str).is_ok() {
             return Ok(SourcePath::LibreDocument(canon_path));
         }
-        Err(InvalidSourceType(display_path(canon_path)))
+        Err(InvalidSourceType(path_to_string(canon_path)))
     }
 }
 
