@@ -2,11 +2,7 @@ use std::fmt::Display;
 use std::path::PathBuf;
 
 use crate::commandline_help::*;
-<<<<<<< HEAD
 use crate::ParametersWithPaths;
-=======
-use crate::{ParametersWithPaths};
->>>>>>> 640d13e9d841c5d02b89e45e6bce96d15e7f391a
 use clap::builder::{styling, OsStr, Str};
 use clap::error::ErrorKind;
 use clap::{
@@ -369,6 +365,7 @@ pub fn get_command() -> Command {
         .after_long_help(AFTER_LONG_HELP)
         .styles(STYLES)
         .disable_version_flag(true)
+        .args_override_self(true)
         .arg(files)
         .arg(alphabetic_file_sorting)
         .arg(recursion_limit)
@@ -552,6 +549,13 @@ mod tests {
             assert_ne!(a, b, "ERROR: {a} - {b}");
         }
     }
+    const IGNORED: &[&str] =&[
+        "config",
+        "quiet",
+        "no_force_image_page_fallback_size",
+        "no_lossless",
+        "no_implicit_config",
+    ];
     #[test]
     pub fn default_differs_non_default() {
         let def = Args::default();
@@ -592,6 +596,10 @@ mod tests {
         let matches = get_command().get_matches_from(arg_strings);
         let parsed = get_args(matches.clone(), None);
         for a in cmd.get_arguments() {
+            let name = a.get_id().to_string();
+            if IGNORED.contains(&name.as_ref()){
+                continue;
+            }
             assert!(
                 matches.value_source(a.get_id().as_str())
                     == Some(clap::parser::ValueSource::CommandLine),

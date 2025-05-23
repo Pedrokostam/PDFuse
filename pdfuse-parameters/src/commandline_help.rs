@@ -110,7 +110,7 @@ pub const OUTPUT_DIRECTORY_LONG_HELP: &str = r#"Directory where the output file 
 A unique filename will be generated using the current date and time and the selected language."#;
 
 pub const OUTPUT_FILE_HELP: &str = "Path to the final output file.";
-pub const OUTPUT_FILE_LONG_HELP: &str = r#"Path for the output file.
+pub const OUTPUT_FILE_LONG_HELP: &str = r#"Path to the final output file.
 
 The file will overwrite any existing file at the target path."#;
 
