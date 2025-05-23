@@ -2,7 +2,11 @@ use std::fmt::Display;
 use std::path::PathBuf;
 
 use crate::commandline_help::*;
+<<<<<<< HEAD
 use crate::ParametersWithPaths;
+=======
+use crate::{ParametersWithPaths};
+>>>>>>> 640d13e9d841c5d02b89e45e6bce96d15e7f391a
 use clap::builder::{styling, OsStr, Str};
 use clap::error::ErrorKind;
 use clap::{
