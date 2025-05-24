@@ -5,6 +5,7 @@ use once_cell::sync::Lazy;
 use pdfuse_utils::{error_t, get_busy_indicator};
 use pdfuse_utils::{info_t, Indexed};
 use walkdir::{DirEntry, WalkDir};
+use crate::source_path::SourcePath;
 
 pub(crate) const IMAGE_EXTENSIONS: &[&str] = &[
     "bmp", "jpeg", "jp2", "jpg", "jpx", "jxr", "pam", "pbm", "pnm", "png", "psd", "tiff",
@@ -31,7 +32,6 @@ pub(crate) const TEXT_EXTENSIONS: &[&str] = &[
 
 pub(crate) const PDF_EXTENSIONS: &[&str] = &["pdf"];
 
-use crate::source_path::SourcePath;
 
 pub(crate) static ALL_SIMPLE_SUPPORTED_EXTENSIONS: Lazy<Vec<&str>> =
     Lazy::new(|| [IMAGE_EXTENSIONS, PDF_EXTENSIONS].concat());

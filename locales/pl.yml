@@ -5,3 +5,5 @@ debug:
   zero_mediabox: "Media box dokumentu %{document} jest pusty."
   adding_image_pdf: "Dodawanie ImagePdf z %{page_count} stronami."
   invalid_mediabox: "Nie można odczytać rozmiaru media box pierwszej strony dokumentu %{document}."
+error:
+  missing_config_file: 'Plik z konfiguracją nie istnieje - %{path}'

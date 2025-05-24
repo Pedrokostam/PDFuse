@@ -3,7 +3,7 @@ use lopdf::{Bookmark, Document, Object, ObjectId};
 use pdfuse_utils::{error_t, get_progress_indicator, log, Indexed};
 use rayon::prelude::*;
 use size_guide::SizeGuide;
-use std::{collections::BTreeMap, fmt::Display, path::PathBuf};
+use std::{collections::BTreeMap, fmt::Display, path::{Path, PathBuf}};
 
 pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
@@ -260,7 +260,7 @@ fn preload_pdf(path: PathBuf) -> PdfResult<Data> {
     LoadedDocument::load_pdf(&path).map(LoadedDocument::into)
 }
 
-pub fn merge_documents<T>(documents: T, output_path: &str)
+pub fn merge_documents<T>(documents: T, output_path: &Path)
 where
     T: IntoIterator<Item = PdfResult<Document>>,
 {

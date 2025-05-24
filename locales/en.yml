@@ -16,6 +16,8 @@ debug:
   root_not_found: '%{item} root not found.'
   loading_file: 'Loading file: %{path}'
   loaded_file_in: 'File %{path} loaded in %{seconds} seconds.'
+  command_parsed_time: 'Parsed command-line in %{millis} milliseconds'
+  reading_preset: "Reading preset configuration at %{path}"
 using-preloaded-source: 'Using preloaded item %{index}-%{path}'
 error:
   docpdf_conversion: 'Error while converting document %{path} to pdf.'

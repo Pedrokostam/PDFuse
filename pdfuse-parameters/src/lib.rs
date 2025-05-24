@@ -1,15 +1,15 @@
-pub mod errors;
-pub mod file_finder;
-pub mod invalid_source_type;
-pub mod source_path;
-pub mod commandline;
-mod commandline_arguments;
+mod errors;
+mod file_finder;
+mod invalid_source_type;
+mod source_path;
+mod commandline;
 mod commandline_help;
 mod parameters;
 mod paths;
-pub use commandline_arguments::Args;
+pub use commandline::{Args,LogLevel,get_args};
 pub use parameters::{Parameters, ParametersWithPaths};
 pub use source_path::SourcePath;
+pub use errors::*;
 
 rust_i18n::i18n!();
 pub use paths::path_to_string;

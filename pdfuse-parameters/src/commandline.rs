@@ -4,10 +4,14 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use crate::errors::ConfigError;
+use crate::source_path::display_path;
 use crate::{commandline_help::*, path_to_string};
 use clap::builder::styling;
 use clap::{Arg, ArgAction, ArgGroup, ArgMatches, Command, ValueEnum, ValueHint};
+use log::logger;
 use pdfuse_sizing::{CustomSize, IsoPaper, PageSize};
+use pdfuse_utils::{debug_t, set_localization};
+use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_CONFIG_PATH: &str = "config_auto.toml";
@@ -128,6 +132,12 @@ impl Default for Args {
 
 impl Args {
     pub fn from_toml_file(path: &Path) -> Result<Args, ConfigError> {
+        println!("{}",t!("debug.reading_preset", path = display_path(path)));
+        debug_t!("debug.reading_preset", path = display_path(path));
+        if !path.exists() {
+            Err(ConfigError::MissingConfigError(display_path(path)))?
+        }
+
         let contents = fs::read_to_string(path)?;
         Ok(toml::from_str::<Args>(&contents)?)
     }
@@ -141,8 +151,14 @@ impl Args {
             } else {
                 fs::write(Path::new(&destination), toml_string)?;
             }
-        } 
-         Ok(())
+        }
+        Ok(())
+    }
+
+    pub fn set_localization(&self) {
+        if let Some(id) = self.language.as_ref() {
+            pdfuse_utils::set_localization(id);
+        }
     }
 }
 // \x1b[0m   -> reset all styles
@@ -199,7 +215,7 @@ pub fn get_command() -> Command {
 
     let language = Arg::new("language")
         .long("language")
-        .visible_alias("lang")
+        .alias("lang")
         .value_name("IDENTIFIER")
         .help(LANGUAGE_HELP);
 
@@ -436,7 +452,23 @@ macro_rules! set_if_present_optional {
         }
     };
 }
+
+/// <ol>
+/// <li>Sets language from command-line.</li>
+/// <li>Loads config (erroring on missing explicit config).</li>
+/// <li>Sets language again.</li>
+/// </ol>
 fn get_preset_config(matches: &ArgMatches) -> Result<Option<Args>, ConfigError> {
+    let mut lang_specified: bool = false;
+    // set localization from command-line in case there's an error while loading a preset.
+    if let Some(id) = matches.get_one::<String>("language") {
+        lang_specified = true;
+        set_localization(id);
+    }
+    if let Some(lvl) = matches.get_one::<LogLevel>("log") {
+        log::set_max_level(lvl.to_owned().into());
+    }
+
     if matches.get_flag("no_config") {
         return Ok(None);
     }
@@ -452,24 +484,39 @@ fn get_preset_config(matches: &ArgMatches) -> Result<Option<Args>, ConfigError> 
         )))?
     }
     let preset = Args::from_toml_file(&config_path)?;
+    // set localization again, in case command-line had no lang, but preset does.
+    if !lang_specified {
+        preset.set_localization();
+    }
     Ok(Some(preset))
 }
+
+/// <ol>
+/// <li>Creates a parser.</li>
+/// <li>Parses command-line.</li>
+/// <li>Loads preset config (if applicable).</li>
+/// <li>Sets language.</li>
+/// <li>Sets loglevel.</li>
+/// </ol>
+///
 pub fn get_args() -> Result<Args, ConfigError> {
     let cmd = get_command();
     let matches = cmd.get_matches();
     let preset = get_preset_config(&matches)?;
-    Ok(get_args_impl(matches, preset))
+    let args = get_args_impl(matches, preset);
+    Ok(args)
 }
 
-pub fn get_args_from<I, T>(items: I) -> Result<Args, ConfigError> 
- where
-        I: IntoIterator<Item = T> + std::fmt::Debug,
-        T: Into<std::ffi::OsString> + Clone{
-    let cmd = get_command();
-    let matches = cmd.get_matches_from(items);
-    let preset = get_preset_config(&matches)?;
-    Ok(get_args_impl(matches, preset))
-}
+// pub fn get_args_from<I, T>(items: I) -> Result<Args, ConfigError>
+// where
+//     I: IntoIterator<Item = T> + std::fmt::Debug,
+//     T: Into<std::ffi::OsString> + Clone,
+// {
+//     let cmd = get_command();
+//     let matches = cmd.get_matches_from(items);
+//     let preset = get_preset_config(&matches)?;
+//     Ok(get_args_impl(matches, preset))
+// }
 
 fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
     let mut base = base.unwrap_or_default();
@@ -478,6 +525,20 @@ fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
         .unwrap()
         .cloned()
         .collect();
+
+    // Sets language as soon as possible!
+    set_if_present_optional!(matches, base, language, String);
+    base.set_localization();
+    //
+
+    // Set LogLevel!
+    if matches.get_flag("quiet") {
+        base.log = LogLevel::Off
+    }
+    set_if_present!(matches, base, log, LogLevel);
+    log::set_max_level(base.log.into());
+    //
+
     if matches.value_source("libreoffice_path") == Some(clap::parser::ValueSource::CommandLine) {
         base.libreoffice_path = matches
             .get_many::<String>("libreoffice_path")
@@ -485,23 +546,19 @@ fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
             .cloned()
             .collect();
     }
-    if matches.get_flag("quiet") {
-        base.log = LogLevel::Off
-    }
     set_if_present_optional!(matches, base, save_config, String);
-    set_if_present_optional!(matches, base, language, String);
 
-    // dont set config - at this point it is useless
-    // if matches.get_flag("no_config") {
-    //     base.config = None;
-    // } else {
-    //     set_if_present_optional!(matches, base, config, String);
-    // }
-    // unless we are testing
-    #[cfg(test)]
-    {
+    // its useless at this point, but lets set it for clarity's saka
+    if matches.get_flag("no_config") {
+        base.config = None;
+    } else {
         set_if_present_optional!(matches, base, config, PathBuf);
     }
+    // // unless we are testing
+    // #[cfg(test)]
+    // {
+    //     set_if_present_optional!(matches, base, config, PathBuf);
+    // }
 
     set_if_present_optional!(matches, base, output_file, String);
     set_if_present!(matches, base, output_directory, String);
@@ -509,7 +566,6 @@ fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
     set_if_present!(matches, base, image_page_fallback_size, PageSize);
     set_if_present!(matches, base, dpi, u16);
     set_if_present!(matches, base, quality, u8);
-    set_if_present!(matches, base, log, LogLevel);
     set_if_present!(matches, base, margin, CustomSize);
 
     set_if_present!(matches, base, confirm_exit, bool);

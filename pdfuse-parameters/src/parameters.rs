@@ -3,7 +3,7 @@ use std::{path::PathBuf, str::FromStr};
 use pdfuse_sizing::{CustomSize, PageSize};
 use pdfuse_utils::Indexed;
 
-use crate::{errors::ConfigError, paths, Args, SourcePath};
+use crate::{errors::ConfigError, file_finder, paths, Args, SourcePath};
 
 /// Parameters used during conversion, creation, and merging of PDFs.
 #[derive(Debug, Clone, Default)]
@@ -22,9 +22,39 @@ pub struct Parameters {
     pub output_file: PathBuf,
 }
 
+/// Returns a unique name based on current time (localized).
+fn get_unique_name() -> String {
+    let now = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
+    format!(
+        "{stem} {date}.pdf",
+        stem = rust_i18n::t!("auto_file_name_stem"),
+        date = now
+    )
+}
+
+fn get_output_path(args: &Args) -> String {
+    match args
+        .output_file
+        .as_ref()
+        .and_then(|fp| paths::expand_path(fp))
+    {
+        Some(path) => path,
+        None => {
+            let unique = get_unique_name();
+            let mut output =
+                PathBuf::from_str(&args.output_directory).expect("It should always be valid utf8");
+            output.push(unique);
+            let with_file = output.as_path().to_string_lossy().into_owned();
+            paths::expand_path(&with_file).expect("Expected a valid path for target directory")
+        }
+    }
+}
+
 impl Parameters {
     pub fn from_args(args: Args) -> Parameters {
         let libreoffice_path = check_libre(&args.libreoffice_path);
+        let output_file =
+            PathBuf::from_str(&get_output_path(&args)).expect("It should always be valid utf8");
         Parameters {
             confirm_exit: args.confirm_exit,
             what_if: args.what_if,
@@ -37,7 +67,7 @@ impl Parameters {
             force_image_page_fallback_size: args.force_image_page_fallback_size,
             alphabetic_file_sorting: args.alphabetic_file_sorting,
             libreoffice_path,
-            output_file: args.output_file,
+            output_file,
         }
     }
 }
@@ -67,8 +97,34 @@ pub struct ParametersWithPaths {
 unsafe impl Send for ParametersWithPaths {}
 
 impl ParametersWithPaths {
-    pub fn parse() -> Result<Self, ConfigError> {
-        let a = Args::create()?;
-        a.make_parameters()
+    pub fn new(args: Args) ->Self{
+        let libreoffice_path = check_libre(&args.libreoffice_path);
+        let output_file =
+            PathBuf::from_str(&get_output_path(&args)).expect("It should always be valid utf8");
+        let files = file_finder::get_files(
+            &args.files,
+            args.recursion_limit,
+            libreoffice_path.is_some(),
+            args.alphabetic_file_sorting,
+        );
+        let parameters = Parameters {
+            confirm_exit: args.confirm_exit,
+            what_if: args.what_if,
+            recursion_limit: args.recursion_limit,
+            image_page_fallback_size: args.image_page_fallback_size,
+            image_dpi: args.dpi,
+            image_quality: args.quality,
+            image_lossless_compression: args.lossless,
+            margin: args.margin,
+            force_image_page_fallback_size: args.force_image_page_fallback_size,
+            alphabetic_file_sorting: args.alphabetic_file_sorting,
+            libreoffice_path,
+            output_file,
+        };
+        ParametersWithPaths {files, parameters }
+    }
+    pub fn deconstruct(self) -> (Vec<Indexed<SourcePath>>,Parameters){
+        (self.files,self.parameters)
     }
 }
+
