@@ -3,13 +3,18 @@ use lopdf::{Bookmark, Document, Object, ObjectId};
 use pdfuse_utils::{error_t, get_progress_indicator, log, Indexed};
 use rayon::prelude::*;
 use size_guide::SizeGuide;
-use std::{collections::BTreeMap, fmt::Display, path::{Path, PathBuf}};
+use std::{
+    collections::BTreeMap,
+    fmt::Display,
+    path::{Path, PathBuf},
+};
 
 pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
 pub use loaded_image::LoadedImage;
 use pdfuse_parameters::{
-    path_to_string, Parameters, SourcePath::{self, Image, LibreDocument, Pdf}
+    Parameters, SafePath,
+    SourcePath::{self, Image, LibreDocument, Pdf},
 };
 
 use crate::DocumentLoadError;
@@ -65,21 +70,21 @@ impl Display for Data {
 }
 
 struct SplitPathsResult(
-    Vec<Indexed<PathBuf>>,
-    Vec<Indexed<PathBuf>>,
-    Vec<Indexed<PathBuf>>,
+    Vec<Indexed<SafePath>>,
+    Vec<Indexed<SafePath>>,
+    Vec<Indexed<SafePath>>,
 );
 
 fn split_paths(sources: Vec<Indexed<SourcePath>>) -> SplitPathsResult {
-    let mut images_to_load: Vec<Indexed<PathBuf>> = Vec::with_capacity(sources.len());
-    let mut pdfs_to_load: Vec<Indexed<PathBuf>> = Vec::with_capacity(sources.len());
-    let mut documents_to_pdf: Vec<Indexed<PathBuf>> = Vec::with_capacity(sources.len());
+    let mut images_to_load: Vec<Indexed<SafePath>> = Vec::with_capacity(sources.len());
+    let mut pdfs_to_load: Vec<Indexed<SafePath>> = Vec::with_capacity(sources.len());
+    let mut documents_to_pdf: Vec<Indexed<SafePath>> = Vec::with_capacity(sources.len());
     for isp in sources {
         let index = isp.index();
         match isp.unwrap() {
-            Image(path_buf) => images_to_load.push((index, path_buf).into()),
-            Pdf(path_buf) => pdfs_to_load.push((index, path_buf).into()),
-            LibreDocument(path_buf) => documents_to_pdf.push((index, path_buf).into()),
+            Image(spath) => images_to_load.push((index, spath).into()),
+            Pdf(spath) => pdfs_to_load.push((index, spath).into()),
+            LibreDocument(spath) =>documents_to_pdf.push((index, spath).into()),
         }
     }
     SplitPathsResult(images_to_load, pdfs_to_load, documents_to_pdf)
@@ -102,7 +107,7 @@ fn size_information_not_needed(
     )
 }
 /// Images (if any) do not need to rely on libre documents' sizes.
-/// 
+///
 /// It's possible to start image conversion while the libre thread is running
 fn run_in_parallel_with_libre(
     loaded_images: Vec<IndexedPdfResult<Data>>,
@@ -133,7 +138,7 @@ fn run_in_parallel_with_libre(
 }
 
 /// Images need to rely on libre documents' sizes.
-/// 
+///
 /// Image conversion has to wait until libre conversion finishes.
 fn wait_for_libre(
     loaded_images: Vec<IndexedPdfResult<Data>>,
@@ -183,7 +188,7 @@ fn parallel_documentize(
                             parameters.image_quality,
                             parameters.image_lossless_compression,
                         );
-                        let path = path_to_string(loaded_image.source_path());
+                        let path = loaded_image.source_path().to_display_string();
                         match imager.add_image(loaded_image) {
                             Ok(_) => (),
                             Err(e) => log::error!("{e} - {path}"),

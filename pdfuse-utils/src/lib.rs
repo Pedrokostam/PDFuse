@@ -16,13 +16,13 @@ macro_rules! info_t {
     ($key:expr) => {{
         if $crate::log::log_enabled!($crate::log::Level::Info) {
             let translated_message = $crate::rust_i18n::t!($key);
-            $crate::log::info!("{}", translated_message);
+            $crate::log::info!("{translated_message}");
         }
     }};
     ($key:expr, $($t_args:tt)+) => {{
         if $crate::log::log_enabled!($crate::log::Level::Info) {
             let translated_message = $crate::rust_i18n::t!($key, $($t_args)*);
-            $crate::log::info!("{}", translated_message);
+            $crate::log::info!("{translated_message}");
         }
     }};
 }
@@ -33,13 +33,30 @@ macro_rules! debug_t {
     ($key:expr) => {{
         if $crate::log::log_enabled!($crate::log::Level::Debug) {
             let translated_message = $crate::rust_i18n::t!($key);
-            $crate::log::debug!("{}", translated_message);
+            $crate::log::debug!("[d] -> {}:{} - {}", file!(), line!(), translated_message);
         }
     }};
     ($key:expr, $($t_args:tt)+) => {{
         if $crate::log::log_enabled!($crate::log::Level::Debug) {
             let translated_message = $crate::rust_i18n::t!($key, $($t_args)*);
-            $crate::log::debug!("{}", translated_message);
+            $crate::log::debug!("[d] -> {}:{} - {}", file!(), line!(), translated_message);
+        }
+    }};
+}
+
+/// Logs translated text (with optional arguments) as warning
+#[macro_export]
+macro_rules! warn_t {
+    ($key:expr) => {{
+        if $crate::log::log_enabled!($crate::log::Level::Debug) {
+            let translated_message = $crate::rust_i18n::t!($key);
+            $crate::log::warn!("{translated_message}");
+        }
+    }};
+    ($key:expr, $($t_args:tt)+) => {{
+        if $crate::log::log_enabled!($crate::log::Level::Debug) {
+            let translated_message = $crate::rust_i18n::t!($key, $($t_args)*);
+            $crate::log::warn!("{translated_message}" );
         }
     }};
 }
@@ -50,13 +67,13 @@ macro_rules! trace_t {
     ($key:expr) => {{
         if $crate::log::log_enabled!($crate::log::Level::Trace) {
             let translated_message = $crate::rust_i18n::t!($key);
-            $crate::log::trace!("{}", translated_message);
+            $crate::log::trace!("[t] -> {}:{} - {}", file!(), line!(), translated_message);
         }
     }};
     ($key:expr, $($t_args:tt)+) => {{
         if $crate::log::log_enabled!($crate::log::Level::Trace) {
             let translated_message = $crate::rust_i18n::t!($key, $($t_args)*);
-            $crate::log::trace!("{}", translated_message);
+            $crate::log::trace!("[t] -> {}:{} - {}", file!(), line!(), translated_message);
         }
     }};
 }
@@ -67,13 +84,13 @@ macro_rules! error_t {
     ($key:expr) => {{
         if $crate::log::log_enabled!($crate::log::Level::Error) {
             let translated_message = $crate::rust_i18n::t!($key);
-            $crate::log::error!("{} {}: {}", file!(), line!(), translated_message);
+            $crate::log::error!("[!] -> {}:{} - {}", file!(), line!(), translated_message);
         }
     }};
     ($key:expr, $($t_args:tt)+) => {{
         if $crate::log::log_enabled!($crate::log::Level::Error) {
             let translated_message = $crate::rust_i18n::t!($key, $($t_args)*);
-            $crate::log::error!("{} {}: {}", file!(), line!(), translated_message);
+            $crate::log::error!("[!] -> {}:{} - {}", file!(), line!(), translated_message);
         }
     }};
 }

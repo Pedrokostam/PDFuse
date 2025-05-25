@@ -1,7 +1,7 @@
 use std::{path::PathBuf, thread::JoinHandle};
 
 use indicatif::{MultiProgress, ProgressBar};
-use pdfuse_parameters::Parameters;
+use pdfuse_parameters::{Parameters, SafePath};
 use pdfuse_utils::{create_temp_dir, get_progress_indicator, Indexed};
 
 use crate::DocumentLoadError;
@@ -14,7 +14,7 @@ pub struct ProgressJoinHandle {
 
 impl ProgressJoinHandle {
     pub fn new(
-        document_paths: Vec<Indexed<PathBuf>>,
+        document_paths: Vec<Indexed<SafePath>>,
         parameters: &Parameters,
         parent_bar: MultiProgress,
     ) -> Self {
@@ -56,7 +56,7 @@ pub enum OptionalThread {
 }
 
 impl OptionalThread {
-    pub fn create(document_paths: Vec<Indexed<PathBuf>>, parameters: &Parameters,parent_bar:MultiProgress) -> Self {
+    pub fn create(document_paths: Vec<Indexed<SafePath>>, parameters: &Parameters,parent_bar:MultiProgress) -> Self {
         if document_paths.is_empty() {
             return Self::NoOp;
         }
@@ -73,10 +73,10 @@ impl OptionalThread {
 }
 
 fn convert_data_to_documents(
-    document_paths: Vec<Indexed<PathBuf>>,
+    document_paths: Vec<Indexed<SafePath>>,
     parameters: &Parameters,
     progress_bar: ProgressBar,
-) -> Vec<Indexed<PdfResult<PathBuf>>> {
+) -> Vec<Indexed<PdfResult<SafePath>>> {
     if parameters.libreoffice_path.is_none() {
         return vec![];
     }

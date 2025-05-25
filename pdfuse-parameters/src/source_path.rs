@@ -1,18 +1,19 @@
-use std::path::{Path, PathBuf};
+use clap::builder::OsStr;
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fmt::Display;
-use serde::{Serialize, Deserialize};
+use std::path::{Path, PathBuf};
 use walkdir::DirEntry;
 
 use crate::file_finder::{ALL_LIBRE_EXTENSIONS, IMAGE_EXTENSIONS, PDF_EXTENSIONS};
 use crate::invalid_source_type::InvalidSourceType;
-use crate::paths::path_to_string;
+use crate::paths::SafePath;
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Eq)]
 pub enum SourcePath {
-    Image(PathBuf),
-    Pdf(PathBuf),
-    LibreDocument(PathBuf),
+    Image(SafePath),
+    Pdf(SafePath),
+    LibreDocument(SafePath),
 }
 
 impl PartialOrd for SourcePath {
@@ -41,7 +42,7 @@ impl TryFrom<&Path> for SourcePath {
     type Error = InvalidSourceType;
 
     fn try_from(value: &Path) -> Result<Self, Self::Error> {
-        Self::from_path(value)
+        Self::try_from_path(value)
     }
 }
 
@@ -59,16 +60,24 @@ impl TryFrom<DirEntry> for SourcePath {
     fn try_from(value: DirEntry) -> Result<Self, Self::Error> {
         match value.path().canonicalize() {
             Ok(c) => c.as_path().try_into(),
-            Err(_) => Err(InvalidSourceType(path_to_string(value.path()))),
+            Err(_) => Err(InvalidSourceType(value.path().into())),
         }
     }
 }
 
-impl From<SourcePath> for PathBuf {
+impl From<SourcePath> for SafePath {
     fn from(value: SourcePath) -> Self {
         match value {
             SourcePath::Image(p) | SourcePath::LibreDocument(p) | SourcePath::Pdf(p) => p,
         }
+    }
+}
+
+impl TryFrom<&OsStr> for SourcePath {
+    type Error = InvalidSourceType;
+
+    fn try_from(value: &OsStr) -> Result<Self, Self::Error> {
+        SourcePath::try_from_path(Path::new(value))
     }
 }
 
@@ -77,36 +86,27 @@ impl Display for SourcePath {
         let path = match self {
             Self::Image(path) | Self::Pdf(path) | Self::LibreDocument(path) => path,
         };
-        write!(f, "{}", path_to_string(path))
+        write!(f, "{}", path)
     }
 }
 
 impl SourcePath {
-    pub fn from_path(path: &Path) -> Result<Self, InvalidSourceType> {
-        let ext = path
+    pub fn try_from_path(path: &Path) -> Result<Self, InvalidSourceType> {
+        let safe_path: SafePath = path.into();
+        let ext = safe_path
             .extension()
             .map(|e| e.to_string_lossy().to_lowercase())
             .unwrap_or_default();
         let ext_str = ext.as_str();
-        let canon_path = path
-            .canonicalize()
-            .map_err(|_| InvalidSourceType(path_to_string(path)))?;
         if IMAGE_EXTENSIONS.binary_search(&ext_str).is_ok() {
-            return Ok(SourcePath::Image(canon_path));
+            return Ok(SourcePath::Image(safe_path));
         }
         if PDF_EXTENSIONS.binary_search(&ext_str).is_ok() {
-            return Ok(SourcePath::Pdf(canon_path));
+            return Ok(SourcePath::Pdf(safe_path));
         }
         if ALL_LIBRE_EXTENSIONS.binary_search(&ext_str).is_ok() {
-            return Ok(SourcePath::LibreDocument(canon_path));
+            return Ok(SourcePath::LibreDocument(safe_path));
         }
-        Err(InvalidSourceType(path_to_string(canon_path)))
+        Err(InvalidSourceType(safe_path))
     }
-}
-
-pub fn display_path(path: impl AsRef<Path>) -> String {
-    path.as_ref()
-        .to_string_lossy()
-        .trim_start_matches(r"\\?\")
-        .to_string()
 }

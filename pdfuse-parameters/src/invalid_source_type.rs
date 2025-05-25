@@ -1,8 +1,10 @@
 use std::fmt::{self, Display};
 use std::error::Error;
 
+use crate::paths::SafePath;
+
 #[derive(Debug)]
-pub struct InvalidSourceType(pub String);
+pub struct InvalidSourceType(pub SafePath);
 
 impl Display for InvalidSourceType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

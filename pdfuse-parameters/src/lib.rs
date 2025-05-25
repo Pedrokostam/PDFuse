@@ -9,10 +9,10 @@ mod paths;
 pub use commandline::{Args,LogLevel,get_args};
 pub use parameters::{Parameters, ParametersWithPaths};
 pub use source_path::SourcePath;
+pub use paths::{SafePath,SafeDestination};
 pub use errors::*;
 
 rust_i18n::i18n!();
-pub use paths::path_to_string;
 #[cfg(test)]
 mod tests {
     // use super::*;

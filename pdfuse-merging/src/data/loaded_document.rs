@@ -1,3 +1,4 @@
+use pdfuse_parameters::SafePath;
 use pdfuse_sizing::{CustomSize, Length};
 use pdfuse_utils::{debug_t, error_t};
 use lopdf::Document;
@@ -12,7 +13,7 @@ use crate::error::{DocumentLoadError, LibreConversionError};
 #[derive(Debug)]
 pub struct LoadedDocument {
     data: Box<Document>,
-    source_path: PathBuf,
+    source_path: SafePath,
 }
 impl From<LoadedDocument> for Document {
     fn from(value: LoadedDocument) -> Self {
@@ -74,16 +75,16 @@ impl LoadedDocument {
         Document::load(path)
             .map(|data| LoadedDocument {
                 data: Box::new(data),
-                source_path: path.to_path_buf(),
+                source_path: SafePath::new(path),
             })
             .map_err(Into::into)
     }
 }
 pub fn convert_document_to_pdf(
-    document_path: &Path,
-    libre_exe_path: &Path,
-    output_dir: &Path,
-) -> Result<PathBuf, LibreConversionError> {
+    document_path: &SafePath,
+    libre_exe_path: &SafePath,
+    output_dir: &SafePath,
+) -> Result<SafePath, LibreConversionError> {
     let extension_path = Path::new(document_path).with_extension("pdf");
     let name = extension_path
         .file_name()

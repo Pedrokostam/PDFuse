@@ -118,8 +118,6 @@ impl SizeGuide {
 #[cfg(test)]
 mod tests {
 
-    use std::path::PathBuf;
-
     use super::*;
 
     fn indexise(paths: &[SourcePath]) -> Vec<Indexed<SourcePath>> {
@@ -130,13 +128,13 @@ mod tests {
             .collect()
     }
     fn pdf() -> SourcePath {
-        SourcePath::Pdf(PathBuf::new())
+        SourcePath::Pdf(Default::default())
     }
     fn image() -> SourcePath {
-        SourcePath::Image(PathBuf::new())
+        SourcePath::Image(Default::default())
     }
     fn libre() -> SourcePath {
-        SourcePath::LibreDocument(PathBuf::new())
+        SourcePath::LibreDocument(Default::default())
     }
     fn params() -> Parameters {
         Parameters {

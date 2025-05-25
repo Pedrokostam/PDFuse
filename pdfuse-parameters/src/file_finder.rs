@@ -126,7 +126,7 @@ pub fn get_files(
     for path in paths.iter() {
         let path = path.as_ref();
         if path.is_file() {
-            match SourcePath::from_path(path) {
+            match SourcePath::try_from_path(path) {
                 Ok(source_path) => {
                     valid_paths.push(source_path);
                     busy.set_message(format!("Found {} files", valid_paths.len()));

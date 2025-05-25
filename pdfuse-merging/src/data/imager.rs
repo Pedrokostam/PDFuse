@@ -175,7 +175,7 @@ fn adjust_to_dpi(image: LoadedImage, draw_area: CustomSize, dpi: f64) -> Dynamic
         debug_t!("debug.excess_dpi", dpi = target_dpi);
         return image.into();
     }
-    let (dynamic_image, path_buf): (DynamicImage, std::path::PathBuf) = image.into_parts();
+    let (dynamic_image, path_buf): (DynamicImage, std::path::PathBuf) = image.deconstruct();
     debug_t!(
         "debug.resizing_image",
         name = path_buf.file_name().unwrap().to_string_lossy(),

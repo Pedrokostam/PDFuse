@@ -3,11 +3,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use crate::commandline_help::*;
 use crate::errors::ConfigError;
-use crate::source_path::display_path;
-use crate::{commandline_help::*, path_to_string};
+use crate::paths::{SafeDestination, SafePath};
 use clap::builder::styling;
-use clap::{Arg, ArgAction, ArgGroup, ArgMatches, Command, ValueEnum, ValueHint};
+use clap::{value_parser, Arg, ArgAction, ArgGroup, ArgMatches, Command, ValueEnum, ValueHint};
 use log::logger;
 use pdfuse_sizing::{CustomSize, IsoPaper, PageSize};
 use pdfuse_utils::{debug_t, set_localization};
@@ -36,8 +36,11 @@ const DEFAULT_LIBRE_PATHS: &[&str] = {
     }
 };
 
-fn get_default_libre() -> Vec<String> {
-    DEFAULT_LIBRE_PATHS.iter().map(|p| p.to_string()).collect()
+fn get_default_libre() -> Vec<SafePath> {
+    DEFAULT_LIBRE_PATHS
+        .iter()
+        .map(|p| SafePath::from(*p))
+        .collect()
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize, PartialEq, Eq)]
@@ -72,15 +75,15 @@ impl Display for LogLevel {
 #[serde(default)]
 pub struct Args {
     #[cfg_attr(not(test), serde(skip))]
-    pub files: Vec<PathBuf>,
+    pub files: Vec<SafePath>,
     #[cfg_attr(not(test), serde(skip))]
-    pub save_config: Option<String>,
+    pub save_config: Option<SafeDestination>,
     pub confirm_exit: bool,
     #[cfg_attr(not(test), serde(skip))]
     pub what_if: bool,
     pub language: Option<String>,
     #[cfg_attr(not(test), serde(skip))]
-    pub config: Option<PathBuf>,
+    pub config: Option<SafePath>,
     pub recursion_limit: usize,
     pub image_page_fallback_size: PageSize,
     pub dpi: u16,
@@ -90,10 +93,10 @@ pub struct Args {
     pub margin: CustomSize,
     pub force_image_page_fallback_size: bool,
     pub alphabetic_file_sorting: bool,
-    pub libreoffice_path: Vec<String>,
-    pub output_directory: String,
+    pub libreoffice_path: Vec<SafePath>,
+    pub output_directory: SafePath,
     #[cfg_attr(not(test), serde(skip))]
-    pub output_file: Option<String>,
+    pub output_file: Option<SafePath>,
 }
 
 impl Default for Args {
@@ -114,30 +117,23 @@ impl Default for Args {
             force_image_page_fallback_size: false,
             alphabetic_file_sorting: false,
             libreoffice_path: get_default_libre(),
-            output_directory: ".".to_owned(),
+            output_directory: ".".into(),
             output_file: None,
-            log: {
-                #[cfg(debug_assertions)]
-                {
-                    LogLevel::Debug
-                }
-                #[cfg(not(debug_assertions))]
-                {
-                    LogLevel::Warn
-                }
+            log: if cfg!(debug_assertions) {
+                LogLevel::Debug
+            } else {
+                LogLevel::Warn
             },
         }
     }
 }
 
 impl Args {
-    pub fn from_toml_file(path: &Path) -> Result<Args, ConfigError> {
-        println!("{}",t!("debug.reading_preset", path = display_path(path)));
-        debug_t!("debug.reading_preset", path = display_path(path));
+    pub fn from_toml_file(path: &SafePath) -> Result<Args, ConfigError> {
+        debug_t!("debug.reading_preset", path = path);
         if !path.exists() {
-            Err(ConfigError::MissingConfigError(display_path(path)))?
+            Err(ConfigError::MissingConfigError(path.clone()))?
         }
-
         let contents = fs::read_to_string(path)?;
         Ok(toml::from_str::<Args>(&contents)?)
     }
@@ -146,11 +142,7 @@ impl Args {
     pub fn save_config(&self) -> Result<(), ConfigError> {
         if let Some(destination) = &self.save_config {
             let toml_string = toml::to_string(self)?;
-            if destination == "-" {
-                print!("{toml_string}");
-            } else {
-                fs::write(Path::new(&destination), toml_string)?;
-            }
+            destination.write_to(&toml_string);
         }
         Ok(())
     }
@@ -186,6 +178,7 @@ pub fn get_command() -> Command {
         .required(true)
         .num_args(1..)
         .help(FILES_HELP)
+        .value_parser(value_parser!(SafePath))
         .long_help(FILES_LONG_HELP);
 
     let save_config = Arg::new("save_config")
@@ -194,6 +187,7 @@ pub fn get_command() -> Command {
         .short('s')
         .value_name("FILEPATH")
         .value_hint(ValueHint::FilePath)
+        .value_parser(value_parser!(SafePath))
         .help(SAVE_CONFIG_HELP);
 
     let confirm_exit = Arg::new("confirm_exit")
@@ -225,6 +219,7 @@ pub fn get_command() -> Command {
         .alias("load-config")
         .value_name("PATH_TO_CONFIG")
         .value_hint(ValueHint::FilePath)
+        .value_parser(value_parser!(SafePath))
         .help(CONFIG_HELP);
 
     let recursion_limit = Arg::new("recursion_limit")
@@ -309,6 +304,7 @@ pub fn get_command() -> Command {
         .visible_alias("libre")
         .value_name("LIBREOFFICE_PATH")
         .num_args(1..)
+        .value_parser(value_parser!(SafePath))
         .default_values(def.libreoffice_path)
         .help(LIBREOFFICE_PATH_HELP)
         .long_help(LIBREOFFICE_PATH_LONG_HELP)
@@ -321,6 +317,7 @@ pub fn get_command() -> Command {
         .value_name("OUTPUT_DIRECTORY")
         .value_hint(ValueHint::DirPath)
         .default_value(def.output_directory.to_string())
+        .value_parser(value_parser!(SafePath))
         .help(OUTPUT_DIRECTORY_HELP)
         .long_help(OUTPUT_DIRECTORY_LONG_HELP);
 
@@ -330,6 +327,7 @@ pub fn get_command() -> Command {
         .alias("outputfile")
         .value_name("OUTPUT_FILEPATH")
         .value_hint(ValueHint::FilePath)
+        .value_parser(value_parser!(SafeDestination))
         .help(OUTPUT_FILE_HELP)
         .long_help(OUTPUT_FILE_LONG_HELP);
 
@@ -472,23 +470,24 @@ fn get_preset_config(matches: &ArgMatches) -> Result<Option<Args>, ConfigError> 
     if matches.get_flag("no_config") {
         return Ok(None);
     }
-    let (config_path, is_explicit_config): (PathBuf, bool) =
-        match matches.get_one::<PathBuf>("config") {
+    let (config_path, is_explicit_config): (SafePath, bool) =
+        match matches.get_one::<SafePath>("config") {
             Some(pbuf) => (pbuf.to_owned(), true),
-            None => (PathBuf::from_str(DEFAULT_CONFIG_PATH).unwrap(), false),
+            None => (SafePath::from(DEFAULT_CONFIG_PATH), false),
         };
     // throw if config is specified but missing
-    if !&config_path.exists() && is_explicit_config {
-        Err(ConfigError::MissingConfigError(path_to_string(
-            &config_path,
-        )))?
-    }
-    let preset = Args::from_toml_file(&config_path)?;
+    let preset = match (is_explicit_config, &config_path.exists()) {
+        (_, true) => Some(Args::from_toml_file(&config_path)?),
+        (false, false) => None,
+        (true, false) => Err(ConfigError::MissingConfigError(config_path))?,
+    };
     // set localization again, in case command-line had no lang, but preset does.
     if !lang_specified {
-        preset.set_localization();
+        if let Some(c) = &preset {
+            c.set_localization()
+        }
     }
-    Ok(Some(preset))
+    Ok(preset)
 }
 
 /// <ol>
@@ -521,7 +520,7 @@ pub fn get_args() -> Result<Args, ConfigError> {
 fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
     let mut base = base.unwrap_or_default();
     base.files = matches
-        .get_many::<PathBuf>("files")
+        .get_many::<SafePath>("files")
         .unwrap()
         .cloned()
         .collect();
@@ -541,18 +540,18 @@ fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
 
     if matches.value_source("libreoffice_path") == Some(clap::parser::ValueSource::CommandLine) {
         base.libreoffice_path = matches
-            .get_many::<String>("libreoffice_path")
+            .get_many::<SafePath>("libreoffice_path")
             .unwrap()
             .cloned()
             .collect();
     }
-    set_if_present_optional!(matches, base, save_config, String);
+    set_if_present_optional!(matches, base, save_config, SafeDestination);
 
     // its useless at this point, but lets set it for clarity's saka
     if matches.get_flag("no_config") {
         base.config = None;
     } else {
-        set_if_present_optional!(matches, base, config, PathBuf);
+        set_if_present_optional!(matches, base, config, SafePath);
     }
     // // unless we are testing
     // #[cfg(test)]
@@ -560,8 +559,8 @@ fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
     //     set_if_present_optional!(matches, base, config, PathBuf);
     // }
 
-    set_if_present_optional!(matches, base, output_file, String);
-    set_if_present!(matches, base, output_directory, String);
+    set_if_present_optional!(matches, base, output_file, SafePath);
+    set_if_present!(matches, base, output_directory, SafePath);
     set_if_present!(matches, base, recursion_limit, usize);
     set_if_present!(matches, base, image_page_fallback_size, PageSize);
     set_if_present!(matches, base, dpi, u16);
@@ -606,13 +605,13 @@ mod tests {
 
     #[test]
     pub fn default_matches_default() {
-        let test_file = "file";
+        let test_file = SafePath::new("file");
         let def = Args {
-            files: vec![PathBuf::from_str(test_file).unwrap()],
+            files: vec![test_file.clone()],
             ..Default::default()
         };
         let cmd = get_args_impl(
-            get_command().get_matches_from(vec!["PDFuse", test_file]),
+            get_command().get_matches_from(vec!["PDFuse", &test_file.to_display_string()]),
             None,
         );
         assert_eq!(def, cmd);
@@ -635,12 +634,12 @@ mod tests {
     pub fn non_default_differs_default() {
         let def = Args {
             alphabetic_file_sorting: !Args::default().alphabetic_file_sorting,
-            files: vec![PathBuf::from_str("A").unwrap()],
-            save_config: Some("A".to_owned()),
+            files: vec!["a".into()],
+            save_config: Some("A".into()),
             confirm_exit: !Args::default().confirm_exit,
             what_if: !Args::default().what_if,
             language: Some("pl".to_owned()),
-            config: Some(PathBuf::from_str("A").unwrap()),
+            config: Some("A".into()),
             recursion_limit: 1338,
             image_page_fallback_size: IsoPaper::c(5).into(),
             dpi: 420,
@@ -649,9 +648,9 @@ mod tests {
             log: LogLevel::Off,
             margin: IsoPaper::c(4).into(),
             force_image_page_fallback_size: !Args::default().force_image_page_fallback_size,
-            libreoffice_path: vec!["none".to_owned()],
-            output_directory: "dir".to_owned(),
-            output_file: Some("".to_owned()),
+            libreoffice_path: vec!["none".into()],
+            output_directory: "dir".into(),
+            output_file: Some("a".into()),
         };
         let parsed = get_args_impl(get_command().get_matches_from(vec!["test", "feil"]), None);
         let line1 = print_fields(&def);

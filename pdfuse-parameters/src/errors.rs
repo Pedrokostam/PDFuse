@@ -2,6 +2,8 @@ use std::fmt::{Debug, Display};
 
 use pdfuse_utils::write_t;
 
+use crate::paths::SafePath;
+
 #[derive(Debug)]
 pub struct NoValidFilesError {}
 impl Display for NoValidFilesError {
@@ -35,8 +37,8 @@ pub enum ConfigError {
     Deserialization(toml::de::Error),
     Serialization(toml::ser::Error),
     NoValidFiles,
-    MalformedPath(String),
-    MissingConfigError(String),
+    MalformedPath(SafePath),
+    MissingConfigError(SafePath),
 }
 impl From<std::io::Error> for ConfigError {
     fn from(value: std::io::Error) -> Self {

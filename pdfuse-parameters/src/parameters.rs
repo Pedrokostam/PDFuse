@@ -1,9 +1,8 @@
-use std::{path::PathBuf, str::FromStr};
 
 use pdfuse_sizing::{CustomSize, PageSize};
 use pdfuse_utils::Indexed;
 
-use crate::{errors::ConfigError, file_finder, paths, Args, SourcePath};
+use crate::{ file_finder, paths::SafePath, Args, SourcePath};
 
 /// Parameters used during conversion, creation, and merging of PDFs.
 #[derive(Debug, Clone, Default)]
@@ -18,8 +17,8 @@ pub struct Parameters {
     pub margin: CustomSize,
     pub force_image_page_fallback_size: bool,
     pub alphabetic_file_sorting: bool,
-    pub libreoffice_path: Option<PathBuf>,
-    pub output_file: PathBuf,
+    pub libreoffice_path: Option<SafePath>,
+    pub output_file: SafePath,
 }
 
 /// Returns a unique name based on current time (localized).
@@ -32,20 +31,13 @@ fn get_unique_name() -> String {
     )
 }
 
-fn get_output_path(args: &Args) -> String {
-    match args
-        .output_file
-        .as_ref()
-        .and_then(|fp| paths::expand_path(fp))
-    {
-        Some(path) => path,
+fn get_output_path(args: &Args) -> SafePath {
+    match &args.output_file {
+        Some(path) => path.to_owned(),
         None => {
             let unique = get_unique_name();
-            let mut output =
-                PathBuf::from_str(&args.output_directory).expect("It should always be valid utf8");
-            output.push(unique);
-            let with_file = output.as_path().to_string_lossy().into_owned();
-            paths::expand_path(&with_file).expect("Expected a valid path for target directory")
+            let p = args.output_directory.join(unique);
+            p.into()
         }
     }
 }
@@ -53,8 +45,7 @@ fn get_output_path(args: &Args) -> String {
 impl Parameters {
     pub fn from_args(args: Args) -> Parameters {
         let libreoffice_path = check_libre(&args.libreoffice_path);
-        let output_file =
-            PathBuf::from_str(&get_output_path(&args)).expect("It should always be valid utf8");
+        let output_file = get_output_path(&args);
         Parameters {
             confirm_exit: args.confirm_exit,
             what_if: args.what_if,
@@ -72,17 +63,10 @@ impl Parameters {
     }
 }
 
-fn check_libre(paths: &[String]) -> Option<PathBuf> {
+fn check_libre(paths: &[SafePath]) -> Option<SafePath> {
     for libre_path in paths {
-        let expanded_path = paths::expand_path(libre_path);
-        let Some(expanded_path_un) = expanded_path else {
-            continue;
-        };
-        if paths::is_executable(&expanded_path_un) {
-            return Some(
-                PathBuf::from_str(&expanded_path_un)
-                    .expect("Path was already checked, should not fail"),
-            );
+        if libre_path.is_executable() {
+            return Some(libre_path.to_owned());
         }
     }
     None
@@ -97,10 +81,9 @@ pub struct ParametersWithPaths {
 unsafe impl Send for ParametersWithPaths {}
 
 impl ParametersWithPaths {
-    pub fn new(args: Args) ->Self{
+    pub fn new(args: Args) -> Self {
         let libreoffice_path = check_libre(&args.libreoffice_path);
-        let output_file =
-            PathBuf::from_str(&get_output_path(&args)).expect("It should always be valid utf8");
+        let output_file = get_output_path(&args);
         let files = file_finder::get_files(
             &args.files,
             args.recursion_limit,
@@ -121,10 +104,9 @@ impl ParametersWithPaths {
             libreoffice_path,
             output_file,
         };
-        ParametersWithPaths {files, parameters }
+        ParametersWithPaths { files, parameters }
     }
-    pub fn deconstruct(self) -> (Vec<Indexed<SourcePath>>,Parameters){
-        (self.files,self.parameters)
+    pub fn deconstruct(self) -> (Vec<Indexed<SourcePath>>, Parameters) {
+        (self.files, self.parameters)
     }
 }
-
