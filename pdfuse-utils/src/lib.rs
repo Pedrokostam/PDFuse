@@ -2,7 +2,6 @@ mod indexed;
 mod localization;
 mod logger;
 mod progress;
-use std::path::PathBuf;
 
 pub use indexed::Indexed;
 pub use log;

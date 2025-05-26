@@ -6,7 +6,7 @@ use size_guide::SizeGuide;
 use std::{
     collections::BTreeMap,
     fmt::Display,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 pub use imager::Imager;

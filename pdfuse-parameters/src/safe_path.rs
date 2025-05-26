@@ -1,4 +1,3 @@
-use clap::builder::OsStr;
 use serde::{Deserialize, Serialize};
 use core::fmt;
 use once_cell::sync::Lazy;

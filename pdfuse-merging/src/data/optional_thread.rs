@@ -1,4 +1,4 @@
-use std::{path::PathBuf, thread::JoinHandle};
+use std::thread::JoinHandle;
 
 use indicatif::{MultiProgress, ProgressBar};
 use pdfuse_parameters::{create_temp_dir, Parameters, SafePath};

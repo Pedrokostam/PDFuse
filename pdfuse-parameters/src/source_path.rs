@@ -2,7 +2,7 @@ use clap::builder::OsStr;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fmt::Display;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use walkdir::DirEntry;
 
 use crate::file_finder::{ALL_LIBRE_EXTENSIONS, IMAGE_EXTENSIONS, PDF_EXTENSIONS};
@@ -86,7 +86,7 @@ impl Display for SourcePath {
         let path = match self {
             Self::Image(path) | Self::Pdf(path) | Self::LibreDocument(path) => path,
         };
-        write!(f, "{}", path)
+        write!(f, "{path}")
     }
 }
 

@@ -1,7 +1,7 @@
 
 use pdfuse_sizing::{CustomSize, PageSize};
 use pdfuse_utils::Indexed;
-use crate::{ file_finder,SafePath, SourcePath};
+use crate::{ SafePath, SourcePath};
 
 /// Parameters used during conversion, creation, and merging of PDFs.
 #[derive(Debug, Clone, Default)]
@@ -19,31 +19,6 @@ pub struct Parameters {
     pub libreoffice_path: Option<SafePath>,
     pub output_file: SafePath,
 }
-
-/// Returns a unique name based on current time (localized).
-fn get_unique_name() -> String {
-    let now = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
-    format!(
-        "{stem} {date}.pdf",
-        stem = rust_i18n::t!("auto_file_name_stem"),
-        date = now
-    )
-}
-
-// fn get_output_path(args: &Args) -> SafePath {
-//     match &args.output_file {
-//         Some(path) => path.to_owned(),
-//         None => {
-//             let unique = get_unique_name();
-//             let p = args.output_directory.join(unique);
-//             p.into()
-//         }
-//     }
-// }
-
-
-
-
 
 /// Parameters for operation of the main app, with paths to process.
 #[derive(Debug)]

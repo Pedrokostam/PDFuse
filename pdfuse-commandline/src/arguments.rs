@@ -106,8 +106,7 @@ fn get_output_path(args: &Args) -> SafePath {
         Some(path) => path.to_owned(),
         None => {
             let unique = get_unique_name();
-            let p = args.output_directory.join(unique);
-            p.into()
+            args.output_directory.join(unique)
         }
     }
 }

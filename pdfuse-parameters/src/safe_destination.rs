@@ -20,7 +20,7 @@ impl From<&std::ffi::OsStr> for SafeDestination {
         if value.to_string_lossy() == "-" {
             return SafeDestination::StdOut;
         }
-        return SafeDestination::File(value.into());
+        SafeDestination::File(value.into())
     }
 }
 impl From<&clap::builder::OsStr> for SafeDestination {
@@ -28,7 +28,7 @@ impl From<&clap::builder::OsStr> for SafeDestination {
         if value.to_string_lossy() == "-" {
             return SafeDestination::StdOut;
         }
-        return SafeDestination::File(value.into());
+        SafeDestination::File(value.into())
     }
 }
 impl From<&str> for SafeDestination{
