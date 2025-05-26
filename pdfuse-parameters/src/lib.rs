@@ -2,15 +2,18 @@ mod errors;
 mod file_finder;
 mod invalid_source_type;
 mod source_path;
-mod commandline;
-mod commandline_help;
+
 mod parameters;
-mod paths;
-pub use commandline::{Args,LogLevel,get_args};
+mod safe_path;
+mod safe_destination;
+mod log_level;
 pub use parameters::{Parameters, ParametersWithPaths};
 pub use source_path::SourcePath;
-pub use paths::{SafePath,SafeDestination};
+pub use safe_path::{SafePath,create_temp_dir};
+pub use safe_destination::SafeDestination;
 pub use errors::*;
+pub use file_finder::get_files;
+pub use log_level::LogLevel;
 
 rust_i18n::i18n!();
 #[cfg(test)]

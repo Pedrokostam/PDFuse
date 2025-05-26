@@ -255,13 +255,13 @@ pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
     );
 }
 
-fn preload_image_indexed(path: Indexed<PathBuf>) -> Indexed<PdfResult<Data>> {
+fn preload_image_indexed(path: Indexed<SafePath>) -> Indexed<PdfResult<Data>> {
     path.map_with_index(|path| LoadedImage::load(&path).map(Into::into).map_err(Into::into))
 }
-fn preload_pdf_indexed(path: Indexed<PathBuf>) -> Indexed<PdfResult<Data>> {
+fn preload_pdf_indexed(path: Indexed<SafePath>) -> Indexed<PdfResult<Data>> {
     path.map_with_index(preload_pdf)
 }
-fn preload_pdf(path: PathBuf) -> PdfResult<Data> {
+fn preload_pdf(path: SafePath) -> PdfResult<Data> {
     LoadedDocument::load_pdf(&path).map(LoadedDocument::into)
 }
 

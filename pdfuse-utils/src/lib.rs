@@ -33,13 +33,13 @@ macro_rules! debug_t {
     ($key:expr) => {{
         if $crate::log::log_enabled!($crate::log::Level::Debug) {
             let translated_message = $crate::rust_i18n::t!($key);
-            $crate::log::debug!("[d] -> {}:{} - {}", file!(), line!(), translated_message);
+            $crate::log::debug!("[d] {}:{} - {}", file!(), line!(), translated_message);
         }
     }};
     ($key:expr, $($t_args:tt)+) => {{
         if $crate::log::log_enabled!($crate::log::Level::Debug) {
             let translated_message = $crate::rust_i18n::t!($key, $($t_args)*);
-            $crate::log::debug!("[d] -> {}:{} - {}", file!(), line!(), translated_message);
+            $crate::log::debug!("[d] {}:{} - {}", file!(), line!(), translated_message);
         }
     }};
 }
@@ -67,13 +67,13 @@ macro_rules! trace_t {
     ($key:expr) => {{
         if $crate::log::log_enabled!($crate::log::Level::Trace) {
             let translated_message = $crate::rust_i18n::t!($key);
-            $crate::log::trace!("[t] -> {}:{} - {}", file!(), line!(), translated_message);
+            $crate::log::trace!("[t] {}:{} - {}", file!(), line!(), translated_message);
         }
     }};
     ($key:expr, $($t_args:tt)+) => {{
         if $crate::log::log_enabled!($crate::log::Level::Trace) {
             let translated_message = $crate::rust_i18n::t!($key, $($t_args)*);
-            $crate::log::trace!("[t] -> {}:{} - {}", file!(), line!(), translated_message);
+            $crate::log::trace!("[t] {}:{} - {}", file!(), line!(), translated_message);
         }
     }};
 }
@@ -84,13 +84,13 @@ macro_rules! error_t {
     ($key:expr) => {{
         if $crate::log::log_enabled!($crate::log::Level::Error) {
             let translated_message = $crate::rust_i18n::t!($key);
-            $crate::log::error!("[!] -> {}:{} - {}", file!(), line!(), translated_message);
+            $crate::log::error!("[!] {}:{} - {}", file!(), line!(), translated_message);
         }
     }};
     ($key:expr, $($t_args:tt)+) => {{
         if $crate::log::log_enabled!($crate::log::Level::Error) {
             let translated_message = $crate::rust_i18n::t!($key, $($t_args)*);
-            $crate::log::error!("[!] -> {}:{} - {}", file!(), line!(), translated_message);
+            $crate::log::error!("[!] {}:{} - {}", file!(), line!(), translated_message);
         }
     }};
 }
@@ -111,17 +111,6 @@ macro_rules! write_t {
         let translated_message = $crate::rust_i18n::t!($key, $($t_args)*);
         write!($dst,"{}",translated_message)
     }};
-}
-
-/// Creates a directory in %TEMP% and returns its path.
-///
-/// # Panics
-///
-/// Panics if it can't create the directory.
-pub fn create_temp_dir() -> PathBuf {
-    let temp_dir = std::env::temp_dir().join("pdfuse");
-    std::fs::create_dir_all(&temp_dir).expect("Cannot create temporary directories!");
-    temp_dir
 }
 // #[cfg(test)]
 // mod tests {

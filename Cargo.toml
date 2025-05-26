@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = [
+members = [ "pdfuse-commandline",
     "pdfuse-merging",
     "pdfuse-parameters",
     "pdfuse-sizing",
@@ -11,6 +11,7 @@ members = [
 log = "0.4.27"
 indicatif = "0.17.11"
 rust-i18n = "3.1.4"
+serde = { version = "1.0.219", features = ["derive"] }
 printpdf = { version = "0.8.2", features = [
     "bmp",
     "gif",
@@ -35,6 +36,7 @@ pdfuse-sizing = { path = "pdfuse-sizing" }
 pdfuse-utils = { path = "pdfuse-utils" }
 pdfuse-merging = { path = "pdfuse-merging" }
 pdfuse-parameters = { path = "pdfuse-parameters" }
+pdfuse-commandline = { path = "pdfuse-commandline" }
 clap = { version = "4.5.38", features = ["derive"] }
 colored = "3.0.0"
 lopdf = "0.36.0"
@@ -50,7 +52,6 @@ log.workspace = true
 regex = "1.11.1"
 dirs = "6.0.0"
 toml = "0.8.22"
-serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 
 

@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 use std::error::Error;
 
-use crate::paths::SafePath;
+use crate::SafePath;
 
 #[derive(Debug)]
 pub struct InvalidSourceType(pub SafePath);

@@ -1,9 +1,9 @@
+use clap::builder::OsStr;
 use serde::{Deserialize, Serialize};
 use core::fmt;
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use std::borrow::Borrow;
-use std::ffi::OsString;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::{env, io};
@@ -13,23 +13,6 @@ fn replace_env_var(caps: &Captures) -> String {
     env::var(name).ok().unwrap_or(caps[0].to_owned())
 }
 
-// fn expand_vars(path: &str) -> Option<String> {
-//     #[cfg(unix)]
-//     {
-//         return std::fs::canonicalize(path)
-//             .map(|buf| buf.to_string_lossy().into_owned())
-//             .ok();
-//     }
-//     static PERF_FIND: Lazy<Regex> = Lazy::new(|| Regex::new(r"(%(?<name>\w+)%)").unwrap());
-//     let s = PERF_FIND.replace_all(path, replace_env_var).into_owned();
-//     if s.contains('%') {
-//         None
-//     } else {
-//         std::path::absolute(s)
-//             .map(|buf| buf.to_string_lossy().into_owned())
-//             .ok()
-//     }
-// }
 #[cfg(windows)]
 static ENV_FIND: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(%(?<name>\w+)%)").expect("Regex must not fail!"));
@@ -62,16 +45,6 @@ pub(crate) fn is_executable(path: &Path) -> bool {
     false
 }
 
-// pub(crate) fn expand_path(path: &str) -> Option<String> {
-//     let non_home = if path.starts_with('~') {
-//         let home_dir = dirs::home_dir();
-//         path.replace('~', &home_dir.unwrap().to_string_lossy())
-//     } else {
-//         path.to_owned()
-//     };
-//     let output: Option<String> = expand_vars(&non_home);
-//     output
-// }
 
 fn path_to_string(path: impl AsRef<Path>) -> String {
     let p = path.as_ref();
@@ -84,10 +57,6 @@ fn path_to_string_impl(path: &Path) -> String {
         .to_string()
 }
 
-// pub fn path_from_os_string(os_str: &OsStr) -> Result<PathBuf, String> {
-//     let path = os_str.to_string_lossy();
-//     let expanded = expand_path(&path);
-// }
 
 /// Replaces '~' with HOME, replaces environmental variables in the path
 fn normalize_path(path: &Path) -> PathBuf {
@@ -133,6 +102,12 @@ impl SafePath {
     pub fn write_to(&self, data: &[u8]) -> io::Result<()> {
         std::fs::create_dir_all(self)?;
         std::fs::write(self, data)
+    }
+    pub fn with_extension(&self,extension:impl AsRef<std::ffi::OsStr>)->Self{
+        self.0.with_extension(extension).into()
+    }
+    pub fn join(&self,path:impl AsRef<Path>)->Self{
+        self.0.join(path).into()
     }
 }
 impl Default for SafePath{
@@ -183,11 +158,6 @@ impl From<&clap::builder::OsStr> for SafePath {
         SafePath::new(value)
     }
 }
-// impl From<SafePath> for &OsStr{
-//     fn from(value: SafePath) -> Self {
-//         value.0.as_os_str()
-//     }
-// }
 
 impl From<SafePath> for clap::builder::OsStr{
     fn from(value: SafePath) -> Self {
@@ -200,6 +170,11 @@ impl AsRef<Path> for SafePath {
         &self.0
     }
 }
+impl AsRef<std::ffi::OsStr> for SafePath {
+    fn as_ref(&self) -> &std::ffi::OsStr {
+        self.0.as_os_str()
+    }
+}
 impl Borrow<Path> for SafePath {
     fn borrow(&self) -> &Path {
         &self.0
@@ -210,55 +185,13 @@ impl fmt::Display for SafePath {
         write!(f, "{}", self.to_display_string())
     }
 }
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,Serialize,Deserialize)]
-pub enum SafeDestination {
-    File(SafePath),
-    StdOut,
-    StdErr,
-}
-
-impl From<SafePath> for SafeDestination {
-    fn from(value: SafePath) -> Self {
-        SafeDestination::File(value)
-    }
-}
-impl From<&std::ffi::OsStr> for SafeDestination {
-    fn from(value: &std::ffi::OsStr) -> Self {
-        if value.to_string_lossy() == "-" {
-            return SafeDestination::StdOut;
-        }
-        return SafeDestination::File(value.into());
-    }
-}
-impl From<&clap::builder::OsStr> for SafeDestination {
-    fn from(value: &clap::builder::OsStr) -> Self {
-        if value.to_string_lossy() == "-" {
-            return SafeDestination::StdOut;
-        }
-        return SafeDestination::File(value.into());
-    }
-}
-impl From<&str> for SafeDestination{
-    fn from(value: &str) -> Self {
-        SafeDestination::from(std::ffi::OsStr::new(value))
-    }
-}
-
-impl SafeDestination {
-    pub fn write_to(&self, data: &str) -> std::io::Result<()> {
-        match self {
-            SafeDestination::File(safe_path) => safe_path.write_to(data.as_bytes())?,
-            SafeDestination::StdOut => println!("{data}"),
-            SafeDestination::StdErr => eprintln!("{data}"),
-        };
-        Ok(())
-    }
-
-    pub fn exists(&self)->bool{
-        match self {
-            SafeDestination::File(safe_path) => safe_path.exists(),
-            _ => true,
-        }
-    }
+/// Creates a directory in %TEMP% and returns its path.
+///
+/// # Panics
+///
+/// Panics if it can't create the directory.
+pub fn create_temp_dir() -> SafePath {
+    let temp_dir:SafePath = std::env::temp_dir().join("pdfuse").into();
+    std::fs::create_dir_all(&temp_dir).expect("Cannot create temporary directories!");
+    temp_dir
 }

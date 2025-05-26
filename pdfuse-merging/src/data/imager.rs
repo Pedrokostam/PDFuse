@@ -1,6 +1,7 @@
 
 use image::{imageops::FilterType, DynamicImage};
 use lopdf::Document;
+use pdfuse_parameters::SafePath;
 use pdfuse_sizing::{CustomSize, Length, Size};
 use pdfuse_utils::debug_t;
 // use lopdf::Document, Image, ImageTransform, ImageXObject, PdfDocumentReference, PdfLayerReference,
@@ -175,10 +176,10 @@ fn adjust_to_dpi(image: LoadedImage, draw_area: CustomSize, dpi: f64) -> Dynamic
         debug_t!("debug.excess_dpi", dpi = target_dpi);
         return image.into();
     }
-    let (dynamic_image, path_buf): (DynamicImage, std::path::PathBuf) = image.deconstruct();
+    let (dynamic_image, safe_path): (DynamicImage, SafePath) = image.deconstruct();
     debug_t!(
         "debug.resizing_image",
-        name = path_buf.file_name().unwrap().to_string_lossy(),
+        name = safe_path.file_name().unwrap().to_string_lossy(),
         width = dynamic_image.width(),
         height = dynamic_image.height(),
         target_width = horizontal_pixel_max as u32,

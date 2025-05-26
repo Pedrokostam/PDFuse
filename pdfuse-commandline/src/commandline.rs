@@ -1,18 +1,10 @@
-use std::fmt::Display;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
 
-use crate::commandline_help::*;
-use crate::errors::ConfigError;
-use crate::paths::{SafeDestination, SafePath};
+use crate::{commandline_help::*, Args};
 use clap::builder::styling;
-use clap::{value_parser, Arg, ArgAction, ArgGroup, ArgMatches, Command, ValueEnum, ValueHint};
-use log::logger;
-use pdfuse_sizing::{CustomSize, IsoPaper, PageSize};
-use pdfuse_utils::{debug_t, set_localization};
-use rust_i18n::t;
-use serde::{Deserialize, Serialize};
+use clap::{value_parser, Arg, ArgAction, ArgGroup, ArgMatches, Command, ValueHint};
+use pdfuse_parameters::{ConfigError, LogLevel, SafeDestination, SafePath};
+use pdfuse_sizing::{CustomSize, PageSize};
+use pdfuse_utils::set_localization;
 
 const DEFAULT_CONFIG_PATH: &str = "config_auto.toml";
 
@@ -22,137 +14,10 @@ const STYLES: styling::Styles = styling::Styles::styled()
     .literal(styling::AnsiColor::Green.on_default().bold())
     .placeholder(styling::AnsiColor::Cyan.on_default());
 
-const DEFAULT_LIBRE_PATHS: &[&str] = {
-    #[cfg(windows)]
-    {
-        &[
-            r"%PROGRAMFILES%\LibreOffice\program\soffice.exe",
-            r"%PROGRAMFILES(X86)%\LibreOffice\program\soffice.exe",
-        ]
-    }
-    #[cfg(unix)]
-    {
-        &["/usr/bin/soffice"]
-    }
-};
 
-fn get_default_libre() -> Vec<SafePath> {
-    DEFAULT_LIBRE_PATHS
-        .iter()
-        .map(|p| SafePath::from(*p))
-        .collect()
-}
 
-#[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize, PartialEq, Eq)]
-pub enum LogLevel {
-    /// Log nothing.
-    Off,
-    /// Log only errors.
-    Error,
-    /// Log warnings and errors.
-    Warn,
-    /// Log everything, including debug information.
-    Debug,
-}
 
-impl From<LogLevel> for log::LevelFilter {
-    fn from(value: LogLevel) -> Self {
-        match value {
-            LogLevel::Off => log::LevelFilter::Off,
-            LogLevel::Error => log::LevelFilter::Error,
-            LogLevel::Warn => log::LevelFilter::Warn,
-            LogLevel::Debug => log::LevelFilter::Trace,
-        }
-    }
-}
-impl Display for LogLevel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
-    }
-}
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(default)]
-pub struct Args {
-    #[cfg_attr(not(test), serde(skip))]
-    pub files: Vec<SafePath>,
-    #[cfg_attr(not(test), serde(skip))]
-    pub save_config: Option<SafeDestination>,
-    pub confirm_exit: bool,
-    #[cfg_attr(not(test), serde(skip))]
-    pub what_if: bool,
-    pub language: Option<String>,
-    #[cfg_attr(not(test), serde(skip))]
-    pub config: Option<SafePath>,
-    pub recursion_limit: usize,
-    pub image_page_fallback_size: PageSize,
-    pub dpi: u16,
-    pub quality: u8,
-    pub lossless: bool,
-    pub log: LogLevel,
-    pub margin: CustomSize,
-    pub force_image_page_fallback_size: bool,
-    pub alphabetic_file_sorting: bool,
-    pub libreoffice_path: Vec<SafePath>,
-    pub output_directory: SafePath,
-    #[cfg_attr(not(test), serde(skip))]
-    pub output_file: Option<SafePath>,
-}
-
-impl Default for Args {
-    fn default() -> Self {
-        Self {
-            files: Default::default(),
-            save_config: None,
-            confirm_exit: false,
-            what_if: false,
-            language: None,
-            config: None,
-            recursion_limit: 4,
-            image_page_fallback_size: IsoPaper::a(4).into(),
-            dpi: 300,
-            quality: 95,
-            lossless: false,
-            margin: CustomSize::zero(),
-            force_image_page_fallback_size: false,
-            alphabetic_file_sorting: false,
-            libreoffice_path: get_default_libre(),
-            output_directory: ".".into(),
-            output_file: None,
-            log: if cfg!(debug_assertions) {
-                LogLevel::Debug
-            } else {
-                LogLevel::Warn
-            },
-        }
-    }
-}
-
-impl Args {
-    pub fn from_toml_file(path: &SafePath) -> Result<Args, ConfigError> {
-        debug_t!("debug.reading_preset", path = path);
-        if !path.exists() {
-            Err(ConfigError::MissingConfigError(path.clone()))?
-        }
-        let contents = fs::read_to_string(path)?;
-        Ok(toml::from_str::<Args>(&contents)?)
-    }
-
-    /// Saves config, only if the argument --save-config was specified
-    pub fn save_config(&self) -> Result<(), ConfigError> {
-        if let Some(destination) = &self.save_config {
-            let toml_string = toml::to_string(self)?;
-            destination.write_to(&toml_string);
-        }
-        Ok(())
-    }
-
-    pub fn set_localization(&self) {
-        if let Some(id) = self.language.as_ref() {
-            pdfuse_utils::set_localization(id);
-        }
-    }
-}
 // \x1b[0m   -> reset all styles
 // \x1b[1m   -> start bold
 // \x1b[2m   -> start dim
@@ -490,6 +355,7 @@ fn get_preset_config(matches: &ArgMatches) -> Result<Option<Args>, ConfigError> 
     Ok(preset)
 }
 
+
 /// <ol>
 /// <li>Creates a parser.</li>
 /// <li>Parses command-line.</li>
@@ -588,7 +454,7 @@ fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use pdfuse_sizing::IsoPaper;
 
     use super::*;
 

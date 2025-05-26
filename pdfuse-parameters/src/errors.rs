@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display};
 
 use pdfuse_utils::write_t;
 
-use crate::paths::SafePath;
+use crate::SafePath;
 
 #[derive(Debug)]
 pub struct NoValidFilesError {}

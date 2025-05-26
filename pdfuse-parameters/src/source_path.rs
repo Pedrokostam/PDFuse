@@ -7,7 +7,7 @@ use walkdir::DirEntry;
 
 use crate::file_finder::{ALL_LIBRE_EXTENSIONS, IMAGE_EXTENSIONS, PDF_EXTENSIONS};
 use crate::invalid_source_type::InvalidSourceType;
-use crate::paths::SafePath;
+use crate::safe_path::SafePath;
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Eq)]
 pub enum SourcePath {

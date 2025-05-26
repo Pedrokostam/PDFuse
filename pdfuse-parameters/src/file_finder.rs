@@ -6,6 +6,7 @@ use pdfuse_utils::{error_t, get_busy_indicator};
 use pdfuse_utils::{info_t, Indexed};
 use walkdir::{DirEntry, WalkDir};
 use crate::source_path::SourcePath;
+use crate::SafePath;
 
 pub(crate) const IMAGE_EXTENSIONS: &[&str] = &[
     "bmp", "jpeg", "jp2", "jpg", "jpx", "jxr", "pam", "pbm", "pnm", "png", "psd", "tiff",
@@ -116,7 +117,7 @@ fn recurse_folder(
     output.extend(enumerable);
 }
 pub fn get_files(
-    paths: &[impl AsRef<Path>],
+    paths: &[SafePath],
     max_depth: usize,
     allow_office_docs: bool,
     sort: bool,
@@ -124,7 +125,6 @@ pub fn get_files(
     let busy = get_busy_indicator();
     let mut valid_paths: Vec<SourcePath> = vec![];
     for path in paths.iter() {
-        let path = path.as_ref();
         if path.is_file() {
             match SourcePath::try_from_path(path) {
                 Ok(source_path) => {

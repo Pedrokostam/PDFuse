@@ -1,8 +1,8 @@
 use std::{path::PathBuf, thread::JoinHandle};
 
 use indicatif::{MultiProgress, ProgressBar};
-use pdfuse_parameters::{Parameters, SafePath};
-use pdfuse_utils::{create_temp_dir, get_progress_indicator, Indexed};
+use pdfuse_parameters::{create_temp_dir, Parameters, SafePath};
+use pdfuse_utils::{get_progress_indicator, Indexed};
 
 use crate::DocumentLoadError;
 

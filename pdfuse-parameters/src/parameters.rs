@@ -1,8 +1,7 @@
 
 use pdfuse_sizing::{CustomSize, PageSize};
 use pdfuse_utils::Indexed;
-
-use crate::{ file_finder, paths::SafePath, Args, SourcePath};
+use crate::{ file_finder,SafePath, SourcePath};
 
 /// Parameters used during conversion, creation, and merging of PDFs.
 #[derive(Debug, Clone, Default)]
@@ -31,46 +30,20 @@ fn get_unique_name() -> String {
     )
 }
 
-fn get_output_path(args: &Args) -> SafePath {
-    match &args.output_file {
-        Some(path) => path.to_owned(),
-        None => {
-            let unique = get_unique_name();
-            let p = args.output_directory.join(unique);
-            p.into()
-        }
-    }
-}
+// fn get_output_path(args: &Args) -> SafePath {
+//     match &args.output_file {
+//         Some(path) => path.to_owned(),
+//         None => {
+//             let unique = get_unique_name();
+//             let p = args.output_directory.join(unique);
+//             p.into()
+//         }
+//     }
+// }
 
-impl Parameters {
-    pub fn from_args(args: Args) -> Parameters {
-        let libreoffice_path = check_libre(&args.libreoffice_path);
-        let output_file = get_output_path(&args);
-        Parameters {
-            confirm_exit: args.confirm_exit,
-            what_if: args.what_if,
-            recursion_limit: args.recursion_limit,
-            image_page_fallback_size: args.image_page_fallback_size,
-            image_dpi: args.dpi,
-            image_quality: args.quality,
-            image_lossless_compression: args.lossless,
-            margin: args.margin,
-            force_image_page_fallback_size: args.force_image_page_fallback_size,
-            alphabetic_file_sorting: args.alphabetic_file_sorting,
-            libreoffice_path,
-            output_file,
-        }
-    }
-}
 
-fn check_libre(paths: &[SafePath]) -> Option<SafePath> {
-    for libre_path in paths {
-        if libre_path.is_executable() {
-            return Some(libre_path.to_owned());
-        }
-    }
-    None
-}
+
+
 
 /// Parameters for operation of the main app, with paths to process.
 #[derive(Debug)]
@@ -81,31 +54,31 @@ pub struct ParametersWithPaths {
 unsafe impl Send for ParametersWithPaths {}
 
 impl ParametersWithPaths {
-    pub fn new(args: Args) -> Self {
-        let libreoffice_path = check_libre(&args.libreoffice_path);
-        let output_file = get_output_path(&args);
-        let files = file_finder::get_files(
-            &args.files,
-            args.recursion_limit,
-            libreoffice_path.is_some(),
-            args.alphabetic_file_sorting,
-        );
-        let parameters = Parameters {
-            confirm_exit: args.confirm_exit,
-            what_if: args.what_if,
-            recursion_limit: args.recursion_limit,
-            image_page_fallback_size: args.image_page_fallback_size,
-            image_dpi: args.dpi,
-            image_quality: args.quality,
-            image_lossless_compression: args.lossless,
-            margin: args.margin,
-            force_image_page_fallback_size: args.force_image_page_fallback_size,
-            alphabetic_file_sorting: args.alphabetic_file_sorting,
-            libreoffice_path,
-            output_file,
-        };
-        ParametersWithPaths { files, parameters }
-    }
+    // pub fn new(args: Args) -> Self {
+    //     let libreoffice_path = check_libre(&args.libreoffice_path);
+    //     let output_file = get_output_path(&args);
+    //     let files = file_finder::get_files(
+    //         &args.files,
+    //         args.recursion_limit,
+    //         libreoffice_path.is_some(),
+    //         args.alphabetic_file_sorting,
+    //     );
+    //     let parameters = Parameters {
+    //         confirm_exit: args.confirm_exit,
+    //         what_if: args.what_if,
+    //         recursion_limit: args.recursion_limit,
+    //         image_page_fallback_size: args.image_page_fallback_size,
+    //         image_dpi: args.dpi,
+    //         image_quality: args.quality,
+    //         image_lossless_compression: args.lossless,
+    //         margin: args.margin,
+    //         force_image_page_fallback_size: args.force_image_page_fallback_size,
+    //         alphabetic_file_sorting: args.alphabetic_file_sorting,
+    //         libreoffice_path,
+    //         output_file,
+    //     };
+    //     ParametersWithPaths { files, parameters }
+    // }
     pub fn deconstruct(self) -> (Vec<Indexed<SourcePath>>, Parameters) {
         (self.files, self.parameters)
     }

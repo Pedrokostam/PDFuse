@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 
 use image::{DynamicImage, ImageReader};
 use pdfuse_parameters::SafePath;

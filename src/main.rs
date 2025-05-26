@@ -9,10 +9,9 @@ fn main() {
 fn main_impl() -> Result<(), ConfigError> {
     log::set_logger(&pdfuse_utils::CONSOLE_LOGGER).expect("Setting logger cannot fail!");
     log::set_max_level(log::LevelFilter::Trace);
-    error_t!("error.image_invalid_format");
     let start_time_parse = std::time::Instant::now();
-    let args = pdfuse_parameters::get_args()?;
-    let params_with_paths = ParametersWithPaths::new(args);
+    let args: pdfuse_commandline::Args = pdfuse_commandline::get_args()?;
+    let params_with_paths: ParametersWithPaths = args.to_parameters();
     let end_time_parse: std::time::Instant = std::time::Instant::now();
     debug_t!("debug.command_parsed_time",millis = (end_time_parse-start_time_parse).as_millis());
 

@@ -257,7 +257,7 @@ impl From<PageSize> for CustomSize {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     #![allow(clippy::expect_fun_call)]
 
     use super::*;

@@ -4,7 +4,7 @@ use pdfuse_utils::{debug_t, error_t};
 use lopdf::Document;
 use std::{
     fmt::{Debug, Display},
-    path::{Path, PathBuf},
+    path::{Path},
     process::Command,
 };
 
@@ -85,7 +85,7 @@ pub fn convert_document_to_pdf(
     libre_exe_path: &SafePath,
     output_dir: &SafePath,
 ) -> Result<SafePath, LibreConversionError> {
-    let extension_path = Path::new(document_path).with_extension("pdf");
+    let extension_path = document_path.with_extension("pdf");
     let name = extension_path
         .file_name()
         .expect("Changing extension to pdf shouldn't fail");
