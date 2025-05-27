@@ -27,6 +27,24 @@ where
         }
     }
 }
+impl<T> PartialEq for Indexed<T>{
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index
+    }
+}
+impl<T> Eq for Indexed<T>{
+  
+}
+impl<T> Ord for Indexed<T>{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+       self.index.cmp(&other.index)
+    }
+}
+impl<T> PartialOrd for Indexed<T>{
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
 impl<T> Indexed<T> {
     pub fn new(index: usize, value: T) -> Self {
         Self { index, value }

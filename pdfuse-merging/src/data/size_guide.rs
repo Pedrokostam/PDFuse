@@ -1,4 +1,3 @@
-
 use pdfuse_parameters::{Parameters, SourcePath};
 use pdfuse_sizing::{CustomSize, Size};
 use pdfuse_utils::Indexed;
@@ -72,7 +71,7 @@ impl SizeGuide {
 
     /// Creates a new [`SizeGuide`].\
     /// all_data: slice with all pdfs (converted beforehand or not) that will be needed for the guide.
-    pub fn new(all_data: &[Indexed<PdfResult<Data>>], parameters: &Parameters) -> Self {
+    pub fn new(all_data: &mut [Indexed<PdfResult<Data>>], parameters: &Parameters) -> Self {
         let fallback = parameters.image_page_fallback_size.to_custom_size();
         if parameters.force_image_page_fallback_size {
             return SizeGuide {
@@ -80,38 +79,61 @@ impl SizeGuide {
                 fallback,
             };
         }
-        let mut max_index: usize = 0;
-
-        if let Some(max_item) = all_data.iter().max_by_key(|x| x.index()) {
-            max_index = max_index.max(max_item.index());
+        if !all_data.is_sorted() {
+            all_data.sort_unstable();
         }
-        max_index += 1;
-        let mut proto_guide: Vec<CustomSize> = std::iter::repeat_n(fallback, max_index).collect();
-
-        let mut last_index = 0;
-        let mut last_size = fallback;
-        for (index, custom_size) in all_data.iter().filter_map(|x| match x.value() {
-            Ok(data) => match data {
-                Data::Document(loaded_document) => {
-                    Some((x.index(), loaded_document.page_size().unwrap_or(fallback)))
-                }
-                _ => None,
-            },
-            Err(_) => None,
-        }) {
-            proto_guide[last_index..index].fill(last_size);
-            last_index = index;
-            last_size = custom_size;
+        let mut size_map: Vec<CustomSize> = vec![];
+        for ind_res in all_data.iter() {
+            match ind_res.value() {
+                Err(_) => continue,
+                Ok(data) => match data {
+                    Data::Image(_) => (), // there should be no images here anyway
+                    Data::Document(loaded_document) => {
+                        // get the last value in map
+                        let last_val = size_map.last().unwrap_or(&fallback);
+                        // propagate it until the index of the current item
+                        size_map.resize(ind_res.index(), *last_val);
+                        // if this document has size, append it
+                        // TODO can document not have a size?
+                        if let Some(curr) = loaded_document.page_size() {
+                            size_map.push(curr);
+                        }
+                    }
+                },
+            }
         }
-        proto_guide[last_index..max_index].fill(last_size);
+        // let mut max_index: usize = 0;
+
+        // if let Some(max_item) = all_data.iter().max_by_key(|x| x.index()) {
+        //     max_index = max_index.max(max_item.index());
+        // }
+        // max_index += 1;
+        // let mut proto_guide: Vec<CustomSize> = std::iter::repeat_n(fallback, max_index).collect();
+
+        // let mut last_index = 0;
+        // let mut last_size = fallback;
+        // for (index, custom_size) in all_data.iter().filter_map(|x| match x.value() {
+        //     Ok(data) => match data {
+        //         Data::Document(loaded_document) => {
+        //             Some((x.index(), loaded_document.page_size().unwrap_or(fallback)))
+        //         }
+        //         _ => None,
+        //     },
+        //     Err(_) => None,
+        // }) {
+        //     proto_guide[last_index..index].fill(last_size);
+        //     last_index = index;
+        //     last_size = custom_size;
+        // }
+        // proto_guide[last_index..max_index].fill(last_size);
         SizeGuide {
-            map: Default::default(),
+            map: size_map,
             fallback,
         }
     }
 
     pub fn get_size(&self, index: usize) -> CustomSize {
-        *self.map.get(index).unwrap_or(&self.fallback)
+        *self.map.get(index-1).unwrap_or(&self.fallback)
     }
 }
 
@@ -174,7 +196,13 @@ mod tests {
     fn test_can_create_guide_docs_after_images_forced_fallback() {
         let source_paths = indexise(&[libre(), image(), image(), image()]);
         assert_eq!(
-            SizeGuide::need_to_wait_for_pdf_threads(&source_paths,&Parameters { force_image_page_fallback_size:true,..Default::default()} ),
+            SizeGuide::need_to_wait_for_pdf_threads(
+                &source_paths,
+                &Parameters {
+                    force_image_page_fallback_size: true,
+                    ..Default::default()
+                }
+            ),
             GuideRequirement::SizeInformationNotNeeded
         )
     }

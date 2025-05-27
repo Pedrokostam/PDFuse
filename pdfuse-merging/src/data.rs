@@ -3,11 +3,7 @@ use lopdf::{Bookmark, Document, Object, ObjectId};
 use pdfuse_utils::{error_t, get_progress_indicator, log, Indexed};
 use rayon::prelude::*;
 use size_guide::SizeGuide;
-use std::{
-    collections::BTreeMap,
-    fmt::Display,
-    path::Path,
-};
+use std::{collections::BTreeMap, fmt::Display, path::Path};
 
 pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
@@ -84,7 +80,7 @@ fn split_paths(sources: Vec<Indexed<SourcePath>>) -> SplitPathsResult {
         match isp.unwrap() {
             Image(spath) => images_to_load.push((index, spath).into()),
             Pdf(spath) => pdfs_to_load.push((index, spath).into()),
-            LibreDocument(spath) =>documents_to_pdf.push((index, spath).into()),
+            LibreDocument(spath) => documents_to_pdf.push((index, spath).into()),
         }
     }
     SplitPathsResult(images_to_load, pdfs_to_load, documents_to_pdf)
@@ -116,10 +112,10 @@ fn run_in_parallel_with_libre(
     optional_thread: OptionalThread,
     multi_progress: &MultiProgress,
 ) -> Vec<IndexedPdfResult<Document>> {
-    let loaded_images_pdfs: Vec<IndexedPdfResult<Data>> =
+    let mut loaded_images_pdfs: Vec<IndexedPdfResult<Data>> =
         loaded_images.into_iter().chain(loaded_pdfs).collect();
 
-    let guide = SizeGuide::new(&loaded_images_pdfs, parameters);
+    let guide = SizeGuide::new(& mut loaded_images_pdfs, parameters);
 
     let images_and_pdfs: Vec<Indexed<Result<Document, DocumentLoadError>>> =
         parallel_documentize(parameters, &guide, loaded_images_pdfs, multi_progress);
@@ -133,7 +129,7 @@ fn run_in_parallel_with_libre(
         .into_iter()
         .chain(loaded_documents)
         .collect();
-    all_items.sort_by_key(|x| x.index());
+    all_items.sort_unstable();
     all_items
 }
 
@@ -150,23 +146,23 @@ fn wait_for_libre(
     let loaded_converted_documents: Vec<IndexedPdfResult<Data>> =
         optional_thread.get_converted_data();
 
-    let loaded_all: Vec<IndexedPdfResult<Data>> = loaded_pdfs
+    let mut loaded_all: Vec<IndexedPdfResult<Data>> = loaded_pdfs
         .into_iter()
         .chain(loaded_images)
         .chain(loaded_converted_documents)
         .collect();
 
-    let guide = SizeGuide::new(&loaded_all, parameters);
+    let guide = SizeGuide::new(&mut loaded_all, parameters);
 
     let mut all_items = parallel_documentize(parameters, &guide, loaded_all, multi_progress);
-    all_items.sort_by_key(|x| x.index());
+    all_items.sort_unstable();
     all_items
 }
 
 fn parallel_documentize(
     parameters: &Parameters,
     guide: &SizeGuide,
-    loaded_all: Vec<Indexed<Result<Data, DocumentLoadError>>>,
+    loaded_all: Vec<IndexedPdfResult<Data>>,
     multi_progress: &MultiProgress,
 ) -> Vec<Indexed<Result<Document, DocumentLoadError>>> {
     let bar = multi_progress.add(get_progress_indicator(
