@@ -29,3 +29,4 @@ error:
   missing_config_file: 'No configuration file at the given path - %{path}'
   image_invalid_format: 'Unrecognized image format.'
   image_invalid_pixel_type: 'Unrecognized pixel format.'
+  what_if_mode: "What-if mode enabled"

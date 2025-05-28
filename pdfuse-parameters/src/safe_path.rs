@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
 use core::fmt;
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
+use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -20,8 +20,7 @@ static ENV_FIND: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(\$(?<name>\w+))").expect("Regex must not fail!"));
 
 #[cfg(windows)]
-pub(crate) fn is_executable(path: &str) -> bool {
-    let path = Path::new(path);
+pub(crate) fn is_executable(path: &Path) -> bool {
     if let Some(extension) = path.extension() {
         // Check for common executable extensions
         let exe_extensions = ["exe", "bat", "cmd", "com"];
@@ -44,7 +43,6 @@ pub(crate) fn is_executable(path: &Path) -> bool {
     false
 }
 
-
 fn path_to_string(path: impl AsRef<Path>) -> String {
     let p = path.as_ref();
     path_to_string_impl(p)
@@ -55,7 +53,6 @@ fn path_to_string_impl(path: &Path) -> String {
         .trim_start_matches(r"\\?\")
         .to_string()
 }
-
 
 /// Replaces '~' with HOME, replaces environmental variables in the path
 fn normalize_path(path: &Path) -> PathBuf {
@@ -82,10 +79,12 @@ fn normalize_path(path: &Path) -> PathBuf {
     output
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,Serialize,Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SafePath(PathBuf);
 
 impl SafePath {
+    #[inline]
+    #[must_use]
     /// Converts path into human-friendly form, removing all invalid unicode characters.
     /// On Windows also remove \\?\
     pub fn to_display_string(&self) -> String {
@@ -95,21 +94,27 @@ impl SafePath {
         let p = path.as_ref();
         SafePath(normalize_path(p))
     }
+    #[inline]
+    #[must_use]
     pub fn is_executable(&self) -> bool {
-        is_executable(&self.to_display_string())
+        is_executable(self)
     }
     pub fn write_to(&self, data: &[u8]) -> io::Result<()> {
         std::fs::create_dir_all(self)?;
         std::fs::write(self, data)
     }
-    pub fn with_extension(&self,extension:impl AsRef<std::ffi::OsStr>)->Self{
+    #[inline]
+    #[must_use]
+    pub fn with_extension(&self, extension: impl AsRef<std::ffi::OsStr>) -> Self {
         self.0.with_extension(extension).into()
     }
-    pub fn join(&self,path:impl AsRef<Path>)->Self{
+    #[inline]
+    #[must_use]
+    pub fn join(&self, path: impl AsRef<Path>) -> Self {
         self.0.join(path).into()
     }
 }
-impl Default for SafePath{
+impl Default for SafePath {
     fn default() -> Self {
         SafePath::new("")
     }
@@ -158,7 +163,7 @@ impl From<&clap::builder::OsStr> for SafePath {
     }
 }
 
-impl From<SafePath> for clap::builder::OsStr{
+impl From<SafePath> for clap::builder::OsStr {
     fn from(value: SafePath) -> Self {
         value.0.as_os_str().to_owned().into()
     }
@@ -190,7 +195,7 @@ impl fmt::Display for SafePath {
 ///
 /// Panics if it can't create the directory.
 pub fn create_temp_dir() -> SafePath {
-    let temp_dir:SafePath = std::env::temp_dir().join("pdfuse").into();
+    let temp_dir: SafePath = std::env::temp_dir().join("pdfuse").into();
     std::fs::create_dir_all(&temp_dir).expect("Cannot create temporary directories!");
     temp_dir
 }

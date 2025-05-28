@@ -1,7 +1,6 @@
-
-use crate::{commandline_help::*, Args};
+use crate::{Args, commandline_help::*};
 use clap::builder::styling;
-use clap::{value_parser, Arg, ArgAction, ArgGroup, ArgMatches, Command, ValueHint};
+use clap::{Arg, ArgAction, ArgGroup, ArgMatches, Command, ValueHint, value_parser};
 use pdfuse_parameters::{ConfigError, LogLevel, SafeDestination, SafePath};
 use pdfuse_sizing::{CustomSize, PageSize};
 use pdfuse_utils::set_localization;
@@ -13,10 +12,6 @@ const STYLES: styling::Styles = styling::Styles::styled()
     .usage(styling::AnsiColor::BrightMagenta.on_default().bold())
     .literal(styling::AnsiColor::Green.on_default().bold())
     .placeholder(styling::AnsiColor::Cyan.on_default());
-
-
-
-
 
 // \x1b[0m   -> reset all styles
 // \x1b[1m   -> start bold
@@ -52,7 +47,7 @@ pub fn get_command() -> Command {
         .short('s')
         .value_name("FILEPATH")
         .value_hint(ValueHint::FilePath)
-        .value_parser(value_parser!(SafePath))
+        .value_parser(value_parser!(SafeDestination))
         .help(SAVE_CONFIG_HELP);
 
     let confirm_exit = Arg::new("confirm_exit")
@@ -355,7 +350,16 @@ fn get_preset_config(matches: &ArgMatches) -> Result<Option<Args>, ConfigError> 
     Ok(preset)
 }
 
-
+pub fn get_args() -> Result<Args, ConfigError> {
+    get_args_from_impl(std::env::args_os())
+}
+pub fn get_args_from<I, T>(items: I) -> Result<Args, ConfigError>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<std::ffi::OsString> + Clone,
+{
+    get_args_from_impl(items)
+}
 /// <ol>
 /// <li>Creates a parser.</li>
 /// <li>Parses command-line.</li>
@@ -364,11 +368,20 @@ fn get_preset_config(matches: &ArgMatches) -> Result<Option<Args>, ConfigError> 
 /// <li>Sets loglevel.</li>
 /// </ol>
 ///
-pub fn get_args() -> Result<Args, ConfigError> {
+fn get_args_from_impl<I, T>(items: I) -> Result<Args, ConfigError>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<std::ffi::OsString> + Clone,
+{
     let cmd = get_command();
-    let matches = cmd.get_matches();
+    let matches = cmd.get_matches_from(items);
     let preset = get_preset_config(&matches)?;
     let args = get_args_impl(matches, preset);
+    // Save only if requested
+    args.save_config()?;
+    if args.what_if{
+        Err(ConfigError::WhatIfMode)?
+    }
     Ok(args)
 }
 
@@ -419,11 +432,6 @@ fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
     } else {
         set_if_present_optional!(matches, base, config, SafePath);
     }
-    // // unless we are testing
-    // #[cfg(test)]
-    // {
-    //     set_if_present_optional!(matches, base, config, PathBuf);
-    // }
 
     set_if_present_optional!(matches, base, output_file, SafePath);
     set_if_present!(matches, base, output_directory, SafePath);

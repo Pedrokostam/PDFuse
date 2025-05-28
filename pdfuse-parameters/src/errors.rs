@@ -39,6 +39,7 @@ pub enum ConfigError {
     NoValidFiles,
     MalformedPath(SafePath),
     MissingConfigError(SafePath),
+    WhatIfMode,
 }
 impl From<std::io::Error> for ConfigError {
     fn from(value: std::io::Error) -> Self {
@@ -62,10 +63,14 @@ impl Display for ConfigError {
             ConfigError::Io(error) => write!(f, "{error}"),
             ConfigError::Deserialization(error) => write!(f, "{error}"),
             ConfigError::Serialization(error) => write!(f, "{error}"),
-            
             ConfigError::NoValidFiles => write_t!(f, "error.no_valid_files"),
-            ConfigError::MalformedPath(path) => write_t!(f, "error.invalid_config_path",path=path),
-            ConfigError::MissingConfigError(path) =>write_t!(f, "error.missing_config_file",path=path),
+            ConfigError::MalformedPath(path) => {
+                write_t!(f, "error.invalid_config_path", path = path)
+            }
+            ConfigError::MissingConfigError(path) => {
+                write_t!(f, "error.missing_config_file", path = path)
+            }
+            ConfigError::WhatIfMode => write_t!(f, "error.what_if_mode"),
         }
     }
 }
