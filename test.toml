@@ -1,0 +1,12 @@
+confirm_exit = false
+recursion_limit = 4
+image_page_fallback_size = "A4"
+dpi = 100
+quality = 95
+lossless = false
+log = "Debug"
+margin = "0 mm x 0 mm"
+force_image_page_fallback_size = false
+alphabetic_file_sorting = false
+libreoffice_path = ['C:\Program Files\LibreOffice\program\soffice.exe', '%PROGRAMFILES(X86)%\LibreOffice\program\soffice.exe']
+output_directory = "."

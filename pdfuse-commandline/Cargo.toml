@@ -11,7 +11,6 @@ clap = { version = "4.5.38", features = ["color","derive","cargo","unicode","wra
 log.workspace = true
 serde.workspace=true
 toml = { version = "0.8.22", features = ["preserve_order"] }
-indicatif.workspace = true
 indoc = "2"
 color-print = "0.3.7"
 rust-i18n.workspace = true

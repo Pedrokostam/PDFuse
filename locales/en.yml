@@ -18,6 +18,8 @@ debug:
   loaded_file_in: 'File %{path} loaded in %{seconds} seconds.'
   command_parsed_time: 'Parsed command-line in %{millis} milliseconds'
   reading_preset: "Reading preset configuration at %{path}"
+  dir_tree: "Creating directory tree for %{path}"
+  file_is_dir: "Given path is a directory, not a file: %{path}"
 using-preloaded-source: 'Using preloaded item %{index}-%{path}'
 error:
   docpdf_conversion: 'Error while converting document %{path} to pdf.'

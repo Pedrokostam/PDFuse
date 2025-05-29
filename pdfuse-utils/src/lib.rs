@@ -5,10 +5,12 @@ mod progress;
 
 pub use indexed::Indexed;
 pub use log;
-pub use logger::CONSOLE_LOGGER;
+// use logger::CONSOLE_LOGGER;
 pub use progress::{get_busy_indicator, get_progress_indicator, BusyIndicator};
 pub use rust_i18n;
 rust_i18n::i18n!();
+
+pub use logger::{deregister_progressbar,register_progressbar,init_logger,set_max_level};
 /// Logs translated text (with optional arguments) as info
 #[macro_export]
 macro_rules! info_t {

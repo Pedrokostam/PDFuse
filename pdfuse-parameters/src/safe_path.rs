@@ -1,5 +1,6 @@
 use core::fmt;
 use once_cell::sync::Lazy;
+use pdfuse_utils::{debug_t, error_t};
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
@@ -100,8 +101,20 @@ impl SafePath {
         is_executable(self)
     }
     pub fn write_to(&self, data: &[u8]) -> io::Result<()> {
-        std::fs::create_dir_all(self)?;
-        std::fs::write(self, data)
+        let pthb: &SafePath = match self.is_absolute() {
+            true => self,
+            false => &self.get_absolute()?,
+        };
+        if let Some(parent) = pthb.parent() {
+            if !parent.exists() {
+                debug_t!("debug.dir_tree", path = pthb);
+                std::fs::create_dir_all(parent)?;
+            }
+        }
+        if pthb.is_dir() {
+            error_t!("debug.file_is_dir", path = pthb);
+        }
+        std::fs::write(pthb, data)
     }
     #[inline]
     #[must_use]
@@ -112,6 +125,10 @@ impl SafePath {
     #[must_use]
     pub fn join(&self, path: impl AsRef<Path>) -> Self {
         self.0.join(path).into()
+    }
+
+    pub fn get_absolute(&self) -> Result<SafePath, io::Error> {
+        std::path::absolute(self).map(SafePath::from)
     }
 }
 impl Default for SafePath {

@@ -149,7 +149,7 @@ impl Args {
     pub fn save_config(&self) -> Result<(), ConfigError> {
         if let Some(destination) = &self.save_config {
             let toml_string = toml::to_string(self)?;
-            destination.write_to(&toml_string)?;
+            destination.write_to(&toml_string)?
         }
         Ok(())
     }

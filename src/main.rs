@@ -4,10 +4,10 @@ use pdfuse_utils::*;
 rust_i18n::i18n!();
 
 fn main() {
-    let _ = main_impl().map_err(|e| println!("{e}"));
+    let _ = main_impl().map_err(|e| log::error!("{e}"));
 }
 fn main_impl() -> Result<(), ConfigError> {
-    log::set_logger(&pdfuse_utils::CONSOLE_LOGGER).expect("Setting logger cannot fail!");
+    pdfuse_utils::init_logger();
     log::set_max_level(log::LevelFilter::Trace);
     let start_time_parse = std::time::Instant::now();
     let args: pdfuse_commandline::Args = pdfuse_commandline::get_args()?;

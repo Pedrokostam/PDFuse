@@ -2,8 +2,13 @@ use core::fmt;
 use std::fmt::Display;
 
 use colored::{ColoredString, Colorize};
-use log::{Level, Metadata, Record};
+use indicatif::{MultiProgress, ProgressBar};
+use log::{Level, LevelFilter, Metadata, Record};
+use once_cell::{self, sync::OnceCell};
 pub static CONSOLE_LOGGER: ConsoleLogger = ConsoleLogger;
+
+// static LOGGY: OnceCell<ConsoleLogger> = OnceCell::new();
+static MULTI: OnceCell<MultiProgress> = OnceCell::new();
 
 pub struct ConsoleLogger;
 enum Message {
@@ -44,8 +49,37 @@ impl log::Log for ConsoleLogger {
                 Level::Debug => s.purple().into(),
                 Level::Trace => s.cyan().into(),
             };
-            println!("{colored}");
+            eprintln!("{colored}");
         }
     }
     fn flush(&self) {}
+}
+
+pub fn init_logger() {
+    let pb = MultiProgress::new();
+    if MULTI.set(pb.clone()).is_err() {
+        log::error!("Logger has already been set!")
+    }
+    let wrap: indicatif_log_bridge::LogWrapper<ConsoleLogger> =
+        indicatif_log_bridge::LogWrapper::new(pb, ConsoleLogger);
+    if log::set_boxed_logger(Box::new(wrap)).is_err() {
+        log::error!("Could not set bridge logger")
+    };
+}
+
+pub fn register_progressbar(pb: ProgressBar) -> ProgressBar {
+    MULTI
+        .get()
+        .expect("Bridge logger has not been set!")
+        .add(pb.clone())
+}
+pub fn deregister_progressbar(pb: &ProgressBar) {
+    MULTI
+        .get()
+        .expect("Bridge logger has not been set!")
+        .remove(pb);
+}
+
+pub fn set_max_level(lvl: impl Into<LevelFilter>) {
+    log::set_max_level(lvl.into());
 }
