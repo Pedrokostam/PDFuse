@@ -10,6 +10,7 @@ log.workspace = true
 rust-i18n.workspace = true
 indicatif-log-bridge = "0.2.3"
 once_cell.workspace=true
+rayon.workspace=true
 
 [package.metadata.i18n]
 available-locales = ["en", "pl"]

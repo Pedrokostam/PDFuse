@@ -187,7 +187,7 @@ pub fn get_command() -> Command {
         .alias("outputfile")
         .value_name("OUTPUT_FILEPATH")
         .value_hint(ValueHint::FilePath)
-        .value_parser(value_parser!(SafeDestination))
+        .value_parser(value_parser!(SafePath))
         .help(OUTPUT_FILE_HELP)
         .long_help(OUTPUT_FILE_LONG_HELP);
 

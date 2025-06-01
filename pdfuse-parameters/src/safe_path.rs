@@ -101,20 +101,17 @@ impl SafePath {
         is_executable(self)
     }
     pub fn write_to(&self, data: &[u8]) -> io::Result<()> {
-        let pthb: &SafePath = match self.is_absolute() {
-            true => self,
-            false => &self.get_absolute()?,
-        };
-        if let Some(parent) = pthb.parent() {
+        if let Some(parent) = self.parent() {
+            // dont need absolute path - working dir must exists anyway
             if !parent.exists() {
-                debug_t!("debug.dir_tree", path = pthb);
+                debug_t!("debug.dir_tree", path = self);
                 std::fs::create_dir_all(parent)?;
             }
         }
-        if pthb.is_dir() {
-            error_t!("debug.file_is_dir", path = pthb);
+        if self.is_dir() {
+            error_t!("debug.file_is_dir", path = self);
         }
-        std::fs::write(pthb, data)
+        std::fs::write(self, data)
     }
     #[inline]
     #[must_use]
@@ -215,4 +212,23 @@ pub fn create_temp_dir() -> SafePath {
     let temp_dir: SafePath = std::env::temp_dir().join("pdfuse").into();
     std::fs::create_dir_all(&temp_dir).expect("Cannot create temporary directories!");
     temp_dir
+}
+
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+    #[test]
+    pub fn string_roundtrip(){
+        let s = "test/file.xml";
+        let p = SafePath::new(s);
+        assert_eq!(s,p.to_display_string());
+    }
+
+    // #[test]
+    // pub fn d(){
+    //     let s:SafePath = env::current_exe().expect("Exe gotta be real").into();
+    //     let p = SafePath::new(s);
+    //     assert_eq!(s,p.to_display_string());
+    // }
 }

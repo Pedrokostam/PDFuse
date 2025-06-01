@@ -58,7 +58,7 @@ impl<T> Indexed<T> {
     pub fn value_mut(&mut self) -> &mut T {
         &mut self.value
     }
-    pub fn unwrap(self) -> T {
+    pub fn take_out(self) -> T {
         self.value
     }
     pub fn map_option<U, F>(self, f: F) -> Option<Indexed<U>>
@@ -66,7 +66,7 @@ impl<T> Indexed<T> {
         F: FnOnce(T) -> Option<U>,
     {
         let index = self.index;
-        let mapped = f(self.unwrap());
+        let mapped = f(self.take_out());
         mapped.map(|value| Indexed{index,value})
     }
     pub fn map_with_index<U, F>(self, f: F) -> Indexed<U>
@@ -75,7 +75,7 @@ impl<T> Indexed<T> {
     {
         Indexed {
             index: self.index(),
-            value: f(self.unwrap()),
+            value: f(self.take_out()),
         }
     }
 }

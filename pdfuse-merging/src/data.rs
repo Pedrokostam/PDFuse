@@ -1,9 +1,14 @@
-use indicatif::MultiProgress;
+use indicatif::{ProgressBar, ProgressIterator};
 use lopdf::{Bookmark, Document, Object, ObjectId};
-use pdfuse_utils::{error_t, get_progress_indicator, log, Indexed};
-use rayon::prelude::*;
+use pdfuse_utils::{
+    error_t, get_registered_busy_indicator, get_registered_progress_iterator,
+    get_registered_progress_iterator_parallel,
+    log::{debug, error},
+    register_progressbar, Indexed,
+};
+use rayon::iter::ParallelIterator;
 use size_guide::SizeGuide;
-use std::{collections::BTreeMap, fmt::Display, path::Path};
+use std::{collections::BTreeMap, env, error::Error, fmt::Display, path::Path};
 
 pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
@@ -13,7 +18,7 @@ use pdfuse_parameters::{
     SourcePath::{self, Image, LibreDocument, Pdf},
 };
 
-use crate::DocumentLoadError;
+use crate::{conditional_slow_down, DocumentLoadError};
 mod imager;
 mod loaded_document;
 mod loaded_image;
@@ -22,12 +27,16 @@ mod size_guide;
 use optional_thread::OptionalThread;
 
 /// Applies `f` to each element of `iter` and collects the results into a `Vec`
-fn vector_map<T, U, F, W>(iter: T, f: F) -> Vec<W>
+fn vector_map<U, F, W>(iter: Vec<U>, f: F, message: &str) -> Vec<W>
 where
-    T: IntoIterator<Item = U>,
     F: FnMut(U) -> W,
 {
-    iter.into_iter().map(f).collect()
+    if iter.is_empty() {
+        return Default::default();
+    }
+    get_registered_progress_iterator(iter.into_iter(), message.to_owned())
+        .map(f)
+        .collect()
 }
 
 pub enum Data {
@@ -65,25 +74,38 @@ impl Display for Data {
     }
 }
 
-struct SplitPathsResult(
-    Vec<Indexed<SafePath>>,
-    Vec<Indexed<SafePath>>,
-    Vec<Indexed<SafePath>>,
-);
-
+/// Named struct containing 3 vector of SourcePaths, divided by their type.
+struct SplitPathsResult {
+    images: Vec<Indexed<SafePath>>,
+    pdfs: Vec<Indexed<SafePath>>,
+    docs: Vec<Indexed<SafePath>>,
+}
+/// Splits given iterable of indexed `SourcePath`s into 3 vectors and puts them into a named struct.
+///
+/// # Panics
+///
+/// Panics if .
+///
+/// # Errors
+///
+/// This function will return an error if .
 fn split_paths(sources: Vec<Indexed<SourcePath>>) -> SplitPathsResult {
     let mut images_to_load: Vec<Indexed<SafePath>> = Vec::with_capacity(sources.len());
     let mut pdfs_to_load: Vec<Indexed<SafePath>> = Vec::with_capacity(sources.len());
     let mut documents_to_pdf: Vec<Indexed<SafePath>> = Vec::with_capacity(sources.len());
     for isp in sources {
         let index = isp.index();
-        match isp.unwrap() {
+        match isp.take_out() {
             Image(spath) => images_to_load.push((index, spath).into()),
             Pdf(spath) => pdfs_to_load.push((index, spath).into()),
             LibreDocument(spath) => documents_to_pdf.push((index, spath).into()),
         }
     }
-    SplitPathsResult(images_to_load, pdfs_to_load, documents_to_pdf)
+    SplitPathsResult {
+        images: images_to_load,
+        pdfs: pdfs_to_load,
+        docs: documents_to_pdf,
+    }
 }
 
 /// Like <code>run_in_parallel_with_libre</code> but when there are no documents or if the fallback size is forced.
@@ -92,15 +114,9 @@ fn size_information_not_needed(
     loaded_pdfs: Vec<IndexedPdfResult<Data>>,
     parameters: &Parameters,
     optional_thread: OptionalThread,
-    multi_progress: &MultiProgress,
-) -> Vec<IndexedPdfResult<Document>> {
-    run_in_parallel_with_libre(
-        loaded_images,
-        loaded_pdfs,
-        parameters,
-        optional_thread,
-        multi_progress,
-    )
+) -> Vec<IndexedPdfResult<LoadedDocument>> {
+    debug!("size_information_not_needed");
+    run_in_parallel_with_libre(loaded_images, loaded_pdfs, parameters, optional_thread)
 }
 /// Images (if any) do not need to rely on libre documents' sizes.
 ///
@@ -110,27 +126,23 @@ fn run_in_parallel_with_libre(
     loaded_pdfs: Vec<IndexedPdfResult<Data>>,
     parameters: &Parameters,
     optional_thread: OptionalThread,
-    multi_progress: &MultiProgress,
-) -> Vec<IndexedPdfResult<Document>> {
+) -> Vec<IndexedPdfResult<LoadedDocument>> {
+    debug!("run_in_parallel_with_libre");
     let mut loaded_images_pdfs: Vec<IndexedPdfResult<Data>> =
         loaded_images.into_iter().chain(loaded_pdfs).collect();
 
-    let guide = SizeGuide::new(& mut loaded_images_pdfs, parameters);
+    let guide = SizeGuide::new(&mut loaded_images_pdfs, parameters);
 
-    let images_and_pdfs: Vec<Indexed<Result<Document, DocumentLoadError>>> =
-        parallel_documentize(parameters, &guide, loaded_images_pdfs, multi_progress);
+    let images_and_pdfs = documentize(parameters, &guide, loaded_images_pdfs, "_&IMG PDF");
 
     // join the parallel thread now, after converting all images
     let converted_documents = optional_thread.get_converted_data();
-    let loaded_documents =
-        parallel_documentize(parameters, &guide, converted_documents, multi_progress);
+    let loaded_documents = documentize(parameters, &guide, converted_documents, "_&IMG PDF DOC");
 
-    let mut all_items: Vec<IndexedPdfResult<Document>> = images_and_pdfs
+    images_and_pdfs
         .into_iter()
         .chain(loaded_documents)
-        .collect();
-    all_items.sort_unstable();
-    all_items
+        .collect()
 }
 
 /// Images need to rely on libre documents' sizes.
@@ -141,8 +153,8 @@ fn wait_for_libre(
     loaded_pdfs: Vec<IndexedPdfResult<Data>>,
     parameters: &Parameters,
     optional_thread: OptionalThread,
-    multi_progress: &MultiProgress,
-) -> Vec<IndexedPdfResult<Document>> {
+) -> Vec<IndexedPdfResult<LoadedDocument>> {
+    debug!("wait_for_libre",);
     let loaded_converted_documents: Vec<IndexedPdfResult<Data>> =
         optional_thread.get_converted_data();
 
@@ -154,118 +166,254 @@ fn wait_for_libre(
 
     let guide = SizeGuide::new(&mut loaded_all, parameters);
 
-    let mut all_items = parallel_documentize(parameters, &guide, loaded_all, multi_progress);
-    all_items.sort_unstable();
-    all_items
+    documentize(parameters, &guide, loaded_all, "_& IMG PDF DOC")
+}
+
+fn sequential_documentize(
+    parameters: &Parameters,
+    guide: &SizeGuide,
+    loaded_all: Vec<IndexedPdfResult<Data>>,
+    message: &str,
+) -> Vec<Indexed<Result<LoadedDocument, DocumentLoadError>>> {
+    debug!("parallel_documentize");
+    let iterator =
+        get_registered_progress_iterator(loaded_all.into_iter(), message.to_owned() + " _SEQ");
+    let mut imager: Option<Imager> = None;
+    let mut output: Vec<Indexed<Result<LoadedDocument, DocumentLoadError>>> = vec![];
+    let mut index = 0;
+    for a in iterator {
+        index = a.index();
+        let _ = match a.take_out() {
+            Err(e) => Err(e),
+            Ok(item) => {
+                match item {
+                    Data::Document(loaded_document) => {
+                        if let Some(img) = imager {
+                            let new_images = LoadedDocument::from_document_like(
+                                Default::default(),
+                                Box::new(img.close_and_into_document()),
+                            );
+                            output.push(Indexed::new(index - 1, Ok(new_images)));
+                            imager = None;
+                        };
+                        output.push(Indexed::new(index, Ok(loaded_document)));
+                    }
+                    Data::Image(loaded_image) => {
+                        let refimg = imager.get_or_insert_with(|| {
+                            Imager::new(
+                                "title",
+                                guide.get_size(index),
+                                parameters.image_dpi,
+                                parameters.margin,
+                                parameters.image_quality,
+                                parameters.image_lossless_compression,
+                            )
+                        });
+                        match refimg.add_image(loaded_image) {
+                            Ok(_) => (),
+                            Err(e) => {
+                                output.push(Indexed::new(index, Err(e.into())));
+                                imager = None;
+                            }
+                        };
+                    }
+                };
+                Ok(())
+            }
+        };
+    }
+    if let Some(img) = imager {
+        let new_images = LoadedDocument::from_document_like(
+            Default::default(),
+            Box::new(img.close_and_into_document()),
+        );
+        output.push(Indexed::new(index, Ok(new_images)));
+    }
+    output
 }
 
 fn parallel_documentize(
     parameters: &Parameters,
     guide: &SizeGuide,
     loaded_all: Vec<IndexedPdfResult<Data>>,
-    multi_progress: &MultiProgress,
-) -> Vec<Indexed<Result<Document, DocumentLoadError>>> {
-    let bar = multi_progress.add(get_progress_indicator(
-        loaded_all.len() as u64,
-        "Converting images and PDFs",
-    ));
-    loaded_all
-        .into_par_iter()
+    message: &str,
+) -> Vec<Indexed<Result<LoadedDocument, DocumentLoadError>>> {
+    let iterator =
+        get_registered_progress_iterator_parallel(loaded_all, message.to_owned() + " PAR");
+    iterator
         .map(|loaded| {
+            conditional_slow_down();
             let index = loaded.index();
-            let value = match loaded.unwrap() {
-                Ok(data) => match data {
+            let value = match loaded.take_out() {
+                Err(e) => Err(e),
+                Ok(item) => match item {
+                    Data::Document(loaded_document) => Ok(loaded_document),
                     Data::Image(loaded_image) => {
-                        let mut imager = Imager::new(
-                            "title",
-                            guide.get_size(index),
-                            parameters.image_dpi,
-                            parameters.margin,
-                            parameters.image_quality,
-                            parameters.image_lossless_compression,
-                        );
-                        let path = loaded_image.source_path().to_display_string();
-                        match imager.add_image(loaded_image) {
-                            Ok(_) => (),
-                            Err(e) => log::error!("{e} - {path}"),
-                        }
-                        Ok(imager.close_and_into_document())
+                        one_image_imager(loaded_image, parameters, guide, index)
                     }
-                    Data::Document(loaded_document) => Ok(loaded_document.into()),
                 },
-                Err(err) => Err(err),
             };
             Indexed::new(index, value)
         })
-        .inspect(|_| bar.inc(1))
         .collect()
 }
 
+fn parallel_documentize_seq(
+    parameters: &Parameters,
+    guide: &SizeGuide,
+    loaded_all: Vec<IndexedPdfResult<Data>>,
+    message: &str,
+) -> Vec<Indexed<Result<LoadedDocument, DocumentLoadError>>> {
+    let iterator =
+        get_registered_progress_iterator(loaded_all.into_iter(), message.to_owned() + " PAR");
+    iterator
+        .map(|loaded| {
+            conditional_slow_down();
+            let index = loaded.index();
+            let value = match loaded.take_out() {
+                Err(e) => Err(e),
+                Ok(item) => match item {
+                    Data::Document(loaded_document) => Ok(loaded_document),
+                    Data::Image(loaded_image) => {
+                        one_image_imager(loaded_image, parameters, guide, index)
+                    }
+                },
+            };
+            Indexed::new(index, value)
+        })
+        .collect()
+}
+
+fn documentize(
+    parameters: &Parameters,
+    guide: &SizeGuide,
+    loaded_all: Vec<IndexedPdfResult<Data>>,
+    message: &str,
+) -> Vec<Indexed<Result<LoadedDocument, DocumentLoadError>>> {
+    if let Ok(val) = env::var("PARALLEL") {
+        if val == "SEQ" {
+            debug!("PARALLEL_SEQ");
+            parallel_documentize_seq(parameters, guide, loaded_all, message)
+        } else {
+            debug!("PARALLEL");
+            parallel_documentize(parameters, guide, loaded_all, message)
+        }
+    } else {
+        debug!("SEQUENTIAL");
+        sequential_documentize(parameters, guide, loaded_all, message)
+    }
+}
+
+fn one_image_imager(
+    image: LoadedImage,
+    parameters: &Parameters,
+    guide: &SizeGuide,
+    index: usize,
+) -> Result<LoadedDocument, DocumentLoadError> {
+    let mut refimg = Imager::new(
+        "title",
+        guide.get_size(index),
+        parameters.image_dpi,
+        parameters.margin,
+        parameters.image_quality,
+        parameters.image_lossless_compression,
+    );
+    let source_path = image.source_path().to_owned();
+    match refimg.add_image(image) {
+        Ok(_) => Ok(LoadedDocument::from_document_like(
+            source_path,
+            Box::new(refimg.close_and_into_document()),
+        )),
+        Err(e) => Err(e.into()),
+    }
+}
+/*
+Ok(data) => match data {
+               Data::Image(loaded_image) => {
+               let refimg = imager.get_or_insert_with(||Imager::new(
+                       "title",
+                       guide.get_size(index),
+                       parameters.image_dpi,
+                       parameters.margin,
+                       parameters.image_quality,
+                       parameters.image_lossless_compression,
+                   ));
+                   let path = loaded_image.source_path().to_display_string();
+                   match refimg.add_image(loaded_image) {
+                       Ok(_) => (),
+                       Err(e) => log::error!("{e} - {path}"),
+                   }
+                   Ok(LoadedDocument(imager.close_and_into_document()))
+               }
+               Data::Document(loaded_document) => Ok(loaded_document),
+           },
+           Err(err) => Err(err),
+*/
 pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
     if !sources.is_sorted_by_key(|x| x.index()) {
         panic!("Paths are supposed to be sorted already!");
     }
-    let parent_bar = MultiProgress::new();
     // let busy = BusyIndicator::new_with_message("Loading files...");
     let branch = SizeGuide::need_to_wait_for_pdf_threads(&sources, parameters);
-    let SplitPathsResult(images_to_load, pdfs_to_load, documents_to_pdf) = split_paths(sources);
+    let SplitPathsResult {
+        images: images_to_load,
+        pdfs: pdfs_to_load,
+        docs: documents_to_pdf,
+    } = split_paths(sources);
 
-    let conversion_thread =
-        OptionalThread::create(documents_to_pdf, parameters, parent_bar.clone());
+    let conversion_thread = OptionalThread::create(documents_to_pdf, parameters);
     // load all PDFs as Data - limited only by disk IO
-    let loaded_pdfs = vector_map(pdfs_to_load, preload_pdf_indexed);
+    let loaded_pdfs = vector_map(pdfs_to_load, preload_pdf_indexed, "_&Preloading PDFs");
 
     // load all images as Data - limited only by disk IO
     let loaded_images: Vec<IndexedPdfResult<Data>> =
-        vector_map(images_to_load, preload_image_indexed);
+        vector_map(images_to_load, preload_image_indexed, "_&Preloading images");
 
     // drop(busy);
-    let all_documents_to_merge = match branch {
-        size_guide::GuideRequirement::SizeInformationNotNeeded => size_information_not_needed(
-            loaded_images,
-            loaded_pdfs,
-            parameters,
-            conversion_thread,
-            &parent_bar,
-        ),
-        size_guide::GuideRequirement::WaitForLibreConversion => wait_for_libre(
-            loaded_images,
-            loaded_pdfs,
-            parameters,
-            conversion_thread,
-            &parent_bar,
-        ),
+    let mut all_documents_to_merge = match branch {
+        size_guide::GuideRequirement::SizeInformationNotNeeded => {
+            size_information_not_needed(loaded_images, loaded_pdfs, parameters, conversion_thread)
+        }
+        size_guide::GuideRequirement::WaitForLibreConversion => {
+            wait_for_libre(loaded_images, loaded_pdfs, parameters, conversion_thread)
+        }
         size_guide::GuideRequirement::RunInParallelWithLibreConversion => {
-            run_in_parallel_with_libre(
-                loaded_images,
-                loaded_pdfs,
-                parameters,
-                conversion_thread,
-                &parent_bar,
-            )
+            run_in_parallel_with_libre(loaded_images, loaded_pdfs, parameters, conversion_thread)
         }
     };
-    merge_documents(
-        all_documents_to_merge.into_iter().map(|x| x.unwrap()),
-        &parameters.output_file,
-    );
+    all_documents_to_merge.sort_unstable();
+    merge_documents(all_documents_to_merge.into_iter(), &parameters.output_file);
+}
+
+fn inspect_err(error: &impl Error) {
+    error!("{error}")
 }
 
 fn preload_image_indexed(path: Indexed<SafePath>) -> Indexed<PdfResult<Data>> {
-    path.map_with_index(|path| LoadedImage::load(&path).map(Into::into).map_err(Into::into))
+    path.map_with_index(|path| {
+        LoadedImage::load(&path)
+            .map(Into::into)
+            .map_err(Into::into)
+            .inspect_err(inspect_err)
+    })
 }
 fn preload_pdf_indexed(path: Indexed<SafePath>) -> Indexed<PdfResult<Data>> {
     path.map_with_index(preload_pdf)
 }
 fn preload_pdf(path: SafePath) -> PdfResult<Data> {
-    LoadedDocument::load_pdf(&path).map(LoadedDocument::into)
+    conditional_slow_down();
+    LoadedDocument::load_pdf(&path)
+        .map(LoadedDocument::into)
+        .inspect_err(inspect_err)
 }
 
+// pub fn merge_documents<T>(documents: T, output_path: &Path)
 pub fn merge_documents<T>(documents: T, output_path: &Path)
 where
-    T: IntoIterator<Item = PdfResult<Document>>,
+    T: IntoIterator<Item = IndexedPdfResult<LoadedDocument>> + ExactSizeIterator,
 {
     // Define a starting max_id (will be used as start index for object_ids)
+    let busy = get_registered_busy_indicator("_&Generating PDF...");
     let mut max_id = 1;
     let mut pagenum = 1;
     // Collect all Documents Objects grouped by a map
@@ -273,12 +421,14 @@ where
     let mut documents_objects: BTreeMap<ObjectId, Object> = BTreeMap::new();
     let mut document = Document::with_version("1.5");
     // https://github.com/J-F-Liu/lopdf/blob/0d65f6ed5b55fde1a583861535b4bfc6cdf42de1/README.md
-    for result in documents {
+    let mut errors: Vec<usize> = vec![];
+    let iterator = documents.into_iter();
+    for result in iterator {
         if result.is_err() {
-            error_t!("error.image_loading", path = result.unwrap_err());
+            errors.push(result.index());
             continue;
         }
-        let mut doc = result.unwrap();
+        let mut doc: Document = result.take_out().unwrap().into();
         let mut first = false;
 
         doc.renumber_objects_with(max_id);
@@ -429,8 +579,20 @@ where
     }
 
     document.compress();
-
     document.save(output_path).unwrap();
+    if !errors.is_empty() {
+        let indices = errors
+            .iter()
+            .map(|n| n.to_string())
+            .collect::<Vec<String>>()
+            .join(", ");
+        error_t!(
+            "error.failed_count",
+            count = errors.len(),
+            indices = indices
+        );
+    }
+    busy.finish_and_clear();
     // Save the merged PDF
     // Store file in current working directory.
     // Note: Line is excluded when running tests

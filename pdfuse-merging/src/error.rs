@@ -1,5 +1,6 @@
 use std::{error::Error, fmt::Display, process::ExitStatus};
 
+use pdfuse_parameters::SafePath;
 use pdfuse_utils::write_t;
 
 pub enum LibreConversionError {
@@ -51,6 +52,11 @@ impl From<std::io::Error> for DocumentLoadError {
         Self::Io(value)
     }
 }
+impl From<ImageLoadError> for DocumentLoadError{
+    fn from(value: ImageLoadError) -> Self {
+        Self::InvalidImage(value)
+    }
+}
 impl Display for DocumentLoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -65,14 +71,14 @@ impl Error for DocumentLoadError{}
 
 #[derive(Debug)]
 pub enum ImageLoadError{
-    UnknownFormat,
-    UnknownPixelType
+    UnknownFormat(SafePath),
+    UnknownPixelType(SafePath)
 }
 impl Display for ImageLoadError{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self{
-            ImageLoadError::UnknownFormat =>write_t!(f,"image_invalid_format"),
-            ImageLoadError::UnknownPixelType => write_t!(f,"image_invalid_pixel_type"),
+            ImageLoadError::UnknownFormat(p) =>write_t!(f,"error.image_invalid_format",path=p),
+            ImageLoadError::UnknownPixelType(p) => write_t!(f,"error.image_invalid_pixel_type",path=p),
         }
     }
 }

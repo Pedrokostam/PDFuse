@@ -83,3 +83,10 @@ pub fn deregister_progressbar(pb: &ProgressBar) {
 pub fn set_max_level(lvl: impl Into<LevelFilter>) {
     log::set_max_level(lvl.into());
 }
+
+pub fn finish_progress_bar(){
+     MULTI
+        .get()
+        .expect("Bridge logger has not been set!")
+        .clear();
+}

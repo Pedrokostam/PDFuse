@@ -2,7 +2,7 @@ use std::path::Path;
 
 use indicatif::ProgressBar;
 use once_cell::sync::Lazy;
-use pdfuse_utils::{error_t, get_busy_indicator};
+use pdfuse_utils::{error_t, get_registered_busy_indicator};
 use pdfuse_utils::{info_t, Indexed};
 use walkdir::{DirEntry, WalkDir};
 use crate::source_path::SourcePath;
@@ -122,7 +122,7 @@ pub fn get_files(
     allow_office_docs: bool,
     sort: bool,
 ) -> Vec<Indexed<SourcePath>> {
-    let busy = get_busy_indicator();
+    let busy = get_registered_busy_indicator("_&Scanning for files");
     let mut valid_paths: Vec<SourcePath> = vec![];
     for path in paths.iter() {
         if path.is_file() {

@@ -5,6 +5,7 @@ rust_i18n::i18n!();
 
 fn main() {
     let _ = main_impl().map_err(|e| log::error!("{e}"));
+    finish_progress_bar();
 }
 fn main_impl() -> Result<(), ConfigError> {
     pdfuse_utils::init_logger();

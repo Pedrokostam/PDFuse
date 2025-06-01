@@ -12,7 +12,7 @@ indicatif.workspace = true
 printpdf = {workspace = true}
 rust-i18n.workspace = true
 dashmap = "6.1.0"
-rayon = "1.10.0"
+rayon.workspace=true
 lopdf = "0.36.0"
 
 [lints]
@@ -22,3 +22,6 @@ workspace = true
 available-locales = ["en", "pl"]
 default-locale = "en"
 load-path = "../locales"
+
+[features]
+slowly=[]

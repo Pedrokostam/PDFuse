@@ -1,6 +1,6 @@
 use pdfuse_parameters::{Parameters, SourcePath};
 use pdfuse_sizing::{CustomSize, Size};
-use pdfuse_utils::Indexed;
+use pdfuse_utils::{log::debug, Indexed};
 
 use super::{Data, PdfResult};
 
@@ -33,6 +33,7 @@ impl SizeGuide {
         parameters: &Parameters,
     ) -> GuideRequirement {
         if parameters.force_image_page_fallback_size {
+            debug!("SKIPP");
             return GuideRequirement::SizeInformationNotNeeded;
         }
         let mut document_before_image = false;
@@ -87,7 +88,10 @@ impl SizeGuide {
             match ind_res.value() {
                 Err(_) => continue,
                 Ok(data) => match data {
-                    Data::Image(_) => (), // there should be no images here anyway
+                    Data::Image(_) => {
+                        let last_val = size_map.last().unwrap_or(&fallback);
+                        size_map.resize(ind_res.index()+1, *last_val);
+                    }, // there should be no images here anyway
                     Data::Document(loaded_document) => {
                         // get the last value in map
                         let last_val = size_map.last().unwrap_or(&fallback);
@@ -102,30 +106,7 @@ impl SizeGuide {
                 },
             }
         }
-        // let mut max_index: usize = 0;
-
-        // if let Some(max_item) = all_data.iter().max_by_key(|x| x.index()) {
-        //     max_index = max_index.max(max_item.index());
-        // }
-        // max_index += 1;
-        // let mut proto_guide: Vec<CustomSize> = std::iter::repeat_n(fallback, max_index).collect();
-
-        // let mut last_index = 0;
-        // let mut last_size = fallback;
-        // for (index, custom_size) in all_data.iter().filter_map(|x| match x.value() {
-        //     Ok(data) => match data {
-        //         Data::Document(loaded_document) => {
-        //             Some((x.index(), loaded_document.page_size().unwrap_or(fallback)))
-        //         }
-        //         _ => None,
-        //     },
-        //     Err(_) => None,
-        // }) {
-        //     proto_guide[last_index..index].fill(last_size);
-        //     last_index = index;
-        //     last_size = custom_size;
-        // }
-        // proto_guide[last_index..max_index].fill(last_size);
+        debug!{"{size_map:?}"};
         SizeGuide {
             map: size_map,
             fallback,
@@ -133,7 +114,13 @@ impl SizeGuide {
     }
 
     pub fn get_size(&self, index: usize) -> CustomSize {
-        *self.map.get(index-1).unwrap_or(&self.fallback)
+        if index >= self.map.len(){
+            // fail-safe - if we try to get an index that goes further than the map, we take the last value.
+            return *self.map.last().unwrap_or(&self.fallback);
+        }
+        debug!{"getting size for {}, fallback is {} - {}",index,self.fallback,*self.map.get(index).unwrap_or(&self.fallback)};
+        
+        *self.map.get(index).unwrap_or(&self.fallback)
     }
 }
 

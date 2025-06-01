@@ -1,9 +1,12 @@
 
+use std::time::Instant;
+
 use image::{imageops::FilterType, DynamicImage};
 use lopdf::Document;
 use pdfuse_parameters::SafePath;
 use pdfuse_sizing::{CustomSize, Length, Size};
 use pdfuse_utils::debug_t;
+use pdfuse_utils::log::debug;
 // use lopdf::Document, Image, ImageTransform, ImageXObject, PdfDocumentReference, PdfLayerReference,
 use printpdf::ImageCompression;
 use printpdf::{
@@ -11,11 +14,13 @@ use printpdf::{
 };
 use printpdf::{PdfSaveOptions, PdfWarnMsg, RawImage};
 
+use crate::conditional_slow_down;
 use crate::error::ImageLoadError;
 
 use super::LoadedImage;
 
-fn dynamic_to_pdf(image: DynamicImage) -> Result<RawImage, ImageLoadError> {
+fn dynamic_to_pdf(image: DynamicImage,path:SafePath) -> Result<RawImage, ImageLoadError> {
+
     // yoinked from printpdf
     // I couldn't find anything to create image from already loaded image.
     let width = image.width() as usize;
@@ -31,7 +36,7 @@ fn dynamic_to_pdf(image: DynamicImage) -> Result<RawImage, ImageLoadError> {
         image::ColorType::Rgba16 => Ok(RawImageFormat::RGBA16),
         image::ColorType::Rgb32F => Ok(RawImageFormat::RGBF32),
         image::ColorType::Rgba32F => Ok(RawImageFormat::RGBAF32),
-        _ => Err(ImageLoadError::UnknownFormat),
+        _ => Err(ImageLoadError::UnknownFormat(path.clone())),
     }?;
     let pixels = match image {
         DynamicImage::ImageLuma8(imbuffer) => Ok(RawImageData::U8(imbuffer.into_raw())),
@@ -44,7 +49,7 @@ fn dynamic_to_pdf(image: DynamicImage) -> Result<RawImage, ImageLoadError> {
         DynamicImage::ImageRgba16(imbuffer) => Ok(RawImageData::U16(imbuffer.into_raw())),
         DynamicImage::ImageRgb32F(imbuffer) => Ok(RawImageData::F32(imbuffer.into_raw())),
         DynamicImage::ImageRgba32F(imbuffer) => Ok(RawImageData::F32(imbuffer.into_raw())),
-        _ => Err(ImageLoadError::UnknownPixelType),
+        _ => Err(ImageLoadError::UnknownPixelType(path)),
     }?;
     // debug!("Data format: {data_format:?}");
     Ok(RawImage {
@@ -103,7 +108,7 @@ impl Imager {
             .document
             .with_pages(self.pages)
             .save(&save_options, &mut warnings);
-        Document::load_mem(&bytes).unwrap()
+         Document::load_mem(&bytes).unwrap()
     }
     pub fn new<FloatLike, PageLike>(
         title: &str,
@@ -131,12 +136,12 @@ impl Imager {
     pub fn add_image(&mut self, image: LoadedImage) -> Result<(), ImageLoadError> {
         let page_size = self.page_size;
         let page_with_margins = page_size - self.margin;
-
+        let image_path= image.source_path().clone();
         let adjusted_image = adjust_to_dpi(image, page_with_margins, self.dpi);
 
         let image_size = get_image_size(&adjusted_image, self.dpi);
 
-        let pdf_image = dynamic_to_pdf(adjusted_image)?;
+        let pdf_image = dynamic_to_pdf(adjusted_image,image_path)?;
         
         let image_id = self.document.add_image(&pdf_image);
         let scale = page_with_margins.fit_size(&image_size);
@@ -159,6 +164,7 @@ impl Imager {
             vec![image_contents],
         );
         self.pages.push(page);
+        conditional_slow_down();
         Ok(())
     }
 }
@@ -173,19 +179,20 @@ fn adjust_to_dpi(image: LoadedImage, draw_area: CustomSize, dpi: f64) -> Dynamic
     let scale = scale_x.min(scale_y);
     if scale >= 1.0 {
         let target_dpi = (image.width() as f64 / draw_area.horizontal.inch()) as u32;
-        debug_t!("debug.excess_dpi", dpi = target_dpi);
+        // debug_t!("debug.excess_dpi", dpi = target_dpi);
         return image.into();
     }
     let (dynamic_image, safe_path): (DynamicImage, SafePath) = image.deconstruct();
-    debug_t!(
-        "debug.resizing_image",
-        name = safe_path.file_name().unwrap().to_string_lossy(),
-        width = dynamic_image.width(),
-        height = dynamic_image.height(),
-        target_width = horizontal_pixel_max as u32,
-        target_height = vertical_pixel_max as u32,
-        scale = scale
-    );
+    // debug_t!(
+    //     "debug.resizing_image",
+    //     name = safe_path.file_name().unwrap().to_string_lossy(),
+    //     width = dynamic_image.width(),
+    //     height = dynamic_image.height(),
+    //     target_width = horizontal_pixel_max as u32,
+    //     target_height = vertical_pixel_max as u32,
+    //     scale = scale
+    // );
+    debug!{"{safe_path} page: {draw_area}"};
     dynamic_image.resize(
         horizontal_pixel_max as u32,
         vertical_pixel_max as u32,

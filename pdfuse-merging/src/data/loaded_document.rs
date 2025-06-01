@@ -1,4 +1,4 @@
-use pdfuse_parameters::SafePath;
+use pdfuse_parameters::{SafePath, SourcePath};
 use pdfuse_sizing::{CustomSize, Length};
 use pdfuse_utils::{debug_t, error_t};
 use lopdf::Document;
@@ -8,7 +8,9 @@ use std::{
     process::Command,
 };
 
-use crate::error::{DocumentLoadError, LibreConversionError};
+use crate::{conditional_slow_down, error::{DocumentLoadError, LibreConversionError}};
+
+use super::{Imager, LoadedImage};
 
 #[derive(Debug)]
 pub struct LoadedDocument {
@@ -20,6 +22,7 @@ impl From<LoadedDocument> for Document {
         *value.data
     }
 }
+
 impl Display for LoadedDocument {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -31,6 +34,9 @@ impl Display for LoadedDocument {
     }
 }
 impl LoadedDocument {
+    pub fn from_document_like(source_path:SafePath,data:Box<Document>)->Self{
+        LoadedDocument{source_path,data:data.into()}
+    }
     pub fn page_count(&self) -> usize {
         self.data.get_pages().len()
     }
@@ -99,6 +105,7 @@ pub fn convert_document_to_pdf(
         .arg("--outdir")
         .arg(output_dir);
     let output = cmd.output()?;
+    conditional_slow_down();
     match output.status.success() {
         true => Ok(temp_path),
         false => Err(LibreConversionError::Status(output.status)),
