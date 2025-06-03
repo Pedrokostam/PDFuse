@@ -1,7 +1,7 @@
 use crate::{Args, commandline_help::*};
 use clap::builder::styling;
 use clap::{Arg, ArgAction, ArgGroup, ArgMatches, Command, ValueHint, value_parser};
-use pdfuse_parameters::{ConfigError, LogLevel, SafeDestination, SafePath};
+use pdfuse_parameters::{Bookmarks, ConfigError, LogLevel, SafeDestination, SafePath};
 use pdfuse_sizing::{CustomSize, PageSize};
 use pdfuse_utils::set_localization;
 
@@ -159,6 +159,14 @@ pub fn get_command() -> Command {
         .help(ALPHABETIC_FILE_SORTING_HELP)
         .long_help(ALPHABETIC_FILE_SORTING_LONG_HELP);
 
+    let bookmarks = Arg::new("bookmarks")
+        .long("bookmarks")
+        .alias("bookmark")
+        .ignore_case(true)
+        .value_parser(clap::builder::EnumValueParser::<Bookmarks>::new())
+        .default_value(def.bookmarks.to_string())
+        .help(BOOKMARKS_HELP);
+
     let libreoffice_path = Arg::new("libreoffice_path")
         .long("libreoffice-path")
         .visible_alias("libre")
@@ -260,6 +268,7 @@ pub fn get_command() -> Command {
         .arg(files)
         .arg(alphabetic_file_sorting)
         .arg(recursion_limit)
+        .arg(bookmarks)
         .next_help_heading("Output")
         .arg(output_file)
         .arg(output_directory)
@@ -522,6 +531,7 @@ mod tests {
             log: LogLevel::Off,
             margin: IsoPaper::c(4).into(),
             force_image_page_fallback_size: !Args::default().force_image_page_fallback_size,
+            bookmarks:Bookmarks::None,
             libreoffice_path: vec!["none".into()],
             output_directory: "dir".into(),
             output_file: Some("a".into()),

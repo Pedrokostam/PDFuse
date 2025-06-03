@@ -33,7 +33,6 @@ impl SizeGuide {
         parameters: &Parameters,
     ) -> GuideRequirement {
         if parameters.force_image_page_fallback_size {
-            debug!("SKIPP");
             return GuideRequirement::SizeInformationNotNeeded;
         }
         let mut document_before_image = false;
@@ -106,7 +105,6 @@ impl SizeGuide {
                 },
             }
         }
-        debug!{"{size_map:?}"};
         SizeGuide {
             map: size_map,
             fallback,
@@ -118,8 +116,6 @@ impl SizeGuide {
             // fail-safe - if we try to get an index that goes further than the map, we take the last value.
             return *self.map.last().unwrap_or(&self.fallback);
         }
-        debug!{"getting size for {}, fallback is {} - {}",index,self.fallback,*self.map.get(index).unwrap_or(&self.fallback)};
-        
         *self.map.get(index).unwrap_or(&self.fallback)
     }
 }

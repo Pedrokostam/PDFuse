@@ -58,8 +58,13 @@ impl<T> Indexed<T> {
     pub fn value_mut(&mut self) -> &mut T {
         &mut self.value
     }
+    /// Takes out the value, discarding the index
     pub fn take_out(self) -> T {
         self.value
+    }
+    /// Deconstructs the object into 2 parts: index and value
+    pub fn deconstruct(self) -> (usize, T) {
+        (self.index,self.value)
     }
     pub fn map_option<U, F>(self, f: F) -> Option<Indexed<U>>
     where
@@ -81,7 +86,7 @@ impl<T> Indexed<T> {
 }
 impl<T> From<Indexed<T>> for (usize, T) {
     fn from(indexed: Indexed<T>) -> Self {
-        (indexed.index, indexed.value)
+        indexed.deconstruct()
     }
 }
 impl<T> From<(usize, T)> for Indexed<T> {

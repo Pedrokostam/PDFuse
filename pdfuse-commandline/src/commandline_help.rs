@@ -54,6 +54,8 @@ By default, files are processed in the order given.
 Enabling this option will sort all found files by path after collection.
 Useful when using drag & drop, as input order may be unpredictable."#;
 
+pub const BOOKMARKS_HELP: &str = "Add bookmarks to output PDF, containing the filename and index of added items.";
+
 pub const CONFIG_HELP: &str = "Load a configuration file with preset options.";
 
 pub const CONFIRM_EXIT_HELP: &str = "Wait for user input before closing the application.";

@@ -1,7 +1,7 @@
-use std::fs;
+use std::{default, fs};
 
 use pdfuse_parameters::{
-    get_files, ConfigError, LogLevel, Parameters, ParametersWithPaths, SafeDestination, SafePath
+    get_files, Bookmarks, ConfigError, LogLevel, Parameters, ParametersWithPaths, SafeDestination, SafePath
 };
 use pdfuse_sizing::{CustomSize, IsoPaper, PageSize};
 use pdfuse_utils::debug_t;
@@ -30,6 +30,7 @@ pub struct Args {
     pub margin: CustomSize,
     pub force_image_page_fallback_size: bool,
     pub alphabetic_file_sorting: bool,
+    pub bookmarks:Bookmarks,
     pub libreoffice_path: Vec<SafePath>,
     pub output_directory: SafePath,
     #[cfg_attr(not(test), serde(skip))]
@@ -72,6 +73,7 @@ impl Default for Args {
             margin: CustomSize::zero(),
             force_image_page_fallback_size: false,
             alphabetic_file_sorting: false,
+            bookmarks:Default::default(),
             libreoffice_path: get_default_libre(),
             output_directory: ".".into(),
             output_file: None,
@@ -139,6 +141,7 @@ impl Args {
             margin: self.margin,
             force_image_page_fallback_size: self.force_image_page_fallback_size,
             alphabetic_file_sorting: self.alphabetic_file_sorting,
+            bookmarks:self.bookmarks,
             libreoffice_path,
             output_file,
         };

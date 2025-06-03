@@ -35,12 +35,12 @@ impl Display for LoadedDocument {
 }
 impl LoadedDocument {
     pub fn from_document_like(source_path:SafePath,data:Box<Document>)->Self{
-        LoadedDocument{source_path,data:data.into()}
+        LoadedDocument{source_path,data}
     }
     pub fn page_count(&self) -> usize {
         self.data.get_pages().len()
     }
-    pub fn source_path(&self) -> &Path {
+    pub fn source_path(&self) -> &SafePath {
         &self.source_path
     }
     pub fn page_size(&self) -> Option<CustomSize> {
@@ -92,7 +92,7 @@ pub fn convert_document_to_pdf(
     output_dir: &SafePath,
 ) -> Result<SafePath, LibreConversionError> {
     let extension_path = document_path.with_extension("pdf");
-    let name = extension_path
+    let name = extension_path.as_path()
         .file_name()
         .expect("Changing extension to pdf shouldn't fail");
     let temp_path = output_dir.join(name);

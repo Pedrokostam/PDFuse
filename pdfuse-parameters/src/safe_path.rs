@@ -4,6 +4,7 @@ use pdfuse_utils::{debug_t, error_t};
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
+use std::ffi::OsStr;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::{env, io};
@@ -127,6 +128,17 @@ impl SafePath {
     pub fn get_absolute(&self) -> Result<SafePath, io::Error> {
         std::path::absolute(self).map(SafePath::from)
     }
+    pub fn as_path(&self) -> &Path {
+        self.as_ref()
+    }
+
+    pub fn file_name(&self) -> String {
+        self.as_path()
+            .file_name()
+            .unwrap_or_else(|| OsStr::new("No filename"))
+            .to_string_lossy()
+            .to_string()
+    }
 }
 impl Default for SafePath {
     fn default() -> Self {
@@ -214,15 +226,14 @@ pub fn create_temp_dir() -> SafePath {
     temp_dir
 }
 
-
 #[cfg(test)]
-mod tests{
+mod tests {
     use super::*;
     #[test]
-    pub fn string_roundtrip(){
+    pub fn string_roundtrip() {
         let s = "test/file.xml";
         let p = SafePath::new(s);
-        assert_eq!(s,p.to_display_string());
+        assert_eq!(s, p.to_display_string());
     }
 
     // #[test]

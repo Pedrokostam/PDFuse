@@ -14,7 +14,7 @@ pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
 pub use loaded_image::LoadedImage;
 use pdfuse_parameters::{
-    Parameters, SafePath,
+    Bookmarks, Parameters, SafePath,
     SourcePath::{self, Image, LibreDocument, Pdf},
 };
 
@@ -382,7 +382,11 @@ pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
         }
     };
     all_documents_to_merge.sort_unstable();
-    merge_documents(all_documents_to_merge.into_iter(), &parameters.output_file);
+    merge_documents(
+        all_documents_to_merge.into_iter(),
+        &parameters.output_file,
+        parameters.bookmarks,
+    );
 }
 
 fn inspect_err(error: &impl Error) {
@@ -407,49 +411,115 @@ fn preload_pdf(path: SafePath) -> PdfResult<Data> {
         .inspect_err(inspect_err)
 }
 
+// fn add_page_objects(
+//     loaded_docs: impl Iterator<Item = IndexedPdfResult<LoadedDocument>>,
+//     bookmark: Bookmarks,
+//     output_document_pages: &mut BTreeMap<ObjectId, Object>,
+//     output_document_objects: &mut BTreeMap<ObjectId, Object>,
+//     output_document: &mut Document,
+//     max_id: &mut u32,
+//     first_page_of_doc:&mut bool,
+// ) {
+//     let mut errors: Vec<usize> = vec![];
+//     for result in loaded_docs {
+//         if result.value().is_err() {
+//             errors.push(result.index());
+//             return;
+//         }
+//         let (index, res_loaded_document) = result.deconstruct();
+//         let loaded_document = res_loaded_document.expect("Already checked for errors");
+//         let path = loaded_document.source_path().to_owned();
+//         let mut iterated_document: Document = loaded_document.into();
+//         iterated_document.renumber_objects_with(*max_id);
+//         *max_id = iterated_document.max_id + 1;
+//         let mut output_bookmark_parent: Option<u32> = None;
+//         output_document_pages.extend(iterated_document.get_pages().into_values().map(
+//             |object_id| {
+//                 if *first_page_of_doc {
+//                     *first_page_of_doc = false;
+//                     let bookmark_text = match bookmark {
+//                         Bookmarks::None => None,
+//                         Bookmarks::Index => Some(format!("{index}")),
+//                         Bookmarks::IndexName => Some(format!("{} - {}", index, path.file_name())),
+//                     };
+//                     if let Some(txt) = bookmark_text {
+//                         let bookmark = Bookmark::new(txt, [0.0, 0.0, 1.0], 0, object_id);
+//                         let new_parent = output_document.add_bookmark(bookmark, None);
+//                         output_bookmark_parent = Some(new_parent);
+//                     }
+//                 }
+//                 (
+//                     object_id,
+//                     iterated_document.get_object(object_id).unwrap().to_owned(),
+//                 )
+//             },
+//         ));
+//         for (_, existing_bookmark) in iterated_document.bookmark_table {
+//             output_document.add_bookmark(existing_bookmark, output_bookmark_parent);
+//         }
+//         output_bookmark_parent = None;
+//         first_page_of_doc = true;
+//         output_document_objects.extend(iterated_document.objects);
+//     }
+// }
+
 // pub fn merge_documents<T>(documents: T, output_path: &Path)
-pub fn merge_documents<T>(documents: T, output_path: &Path)
+pub fn merge_documents<T>(documents: T, output_path: &Path, bookmark: Bookmarks)
 where
     T: IntoIterator<Item = IndexedPdfResult<LoadedDocument>> + ExactSizeIterator,
 {
     // Define a starting max_id (will be used as start index for object_ids)
     let busy = get_registered_busy_indicator("_&Generating PDF...");
     let mut max_id = 1;
-    let mut pagenum = 1;
     // Collect all Documents Objects grouped by a map
-    let mut documents_pages: BTreeMap<ObjectId, Object> = BTreeMap::new();
-    let mut documents_objects: BTreeMap<ObjectId, Object> = BTreeMap::new();
-    let mut document = Document::with_version("1.5");
+    let mut output_documents_pages: BTreeMap<ObjectId, Object> = BTreeMap::new();
+    let mut output_documents_objects: BTreeMap<ObjectId, Object> = BTreeMap::new();
+    let mut output_document = Document::with_version("1.5");
     // https://github.com/J-F-Liu/lopdf/blob/0d65f6ed5b55fde1a583861535b4bfc6cdf42de1/README.md
     let mut errors: Vec<usize> = vec![];
     let iterator = documents.into_iter();
+    let mut first_page_of_doc = true;
     for result in iterator {
-        if result.is_err() {
+        if result.value().is_err() {
             errors.push(result.index());
             continue;
         }
-        let mut doc: Document = result.take_out().unwrap().into();
-        let mut first = false;
-
-        doc.renumber_objects_with(max_id);
-        max_id = doc.max_id + 1;
-
-        documents_pages.extend(
-            doc.get_pages()
-                .into_values()
-                .map(|object_id| {
-                    if !first {
-                        let bookmark =
-                            Bookmark::new(format!("Page_{pagenum}"), [0.0, 0.0, 1.0], 0, object_id);
-                        document.add_bookmark(bookmark, None);
-                        first = true;
-                        pagenum += 1;
+        let (index, res_loaded_document) = result.deconstruct();
+        let loaded_document = res_loaded_document.expect("Already checked for errors");
+        let path = loaded_document.source_path().to_owned();
+        let mut iterated_document: Document = loaded_document.into();
+        iterated_document.renumber_objects_with(max_id);
+        max_id = iterated_document.max_id + 1;
+        let mut output_bookmark_parent: Option<u32> = None;
+        output_documents_pages.extend(iterated_document.get_pages().into_values().map(
+            |object_id| {
+                if first_page_of_doc {
+                    first_page_of_doc = false;
+                    let bookmark_text = match bookmark {
+                        Bookmarks::None => Some("A".to_owned()),
+                        Bookmarks::Index => Some(format!("{index}")),
+                        Bookmarks::IndexName => Some(format!("{} - {}", index, path.file_name())),
+                    };
+                    if let Some(txt) = bookmark_text {
+                        let bookmark = Bookmark::new(txt, [0.0, 0.0, 1.0], 0, object_id);
+                        let new_parent = output_document.add_bookmark(bookmark, None);
+                        output_bookmark_parent = Some(new_parent);
                     }
-                    (object_id, doc.get_object(object_id).unwrap().to_owned())
-                })
-                .collect::<BTreeMap<ObjectId, Object>>(),
-        );
-        documents_objects.extend(doc.objects);
+                }
+                (
+                    object_id,
+                    iterated_document.get_object(object_id).unwrap().to_owned(),
+                )
+            },
+        ));
+        debug!("{output_bookmark_parent:?}");
+        for (_, existing_bookmark) in iterated_document.bookmark_table {
+            debug!("{existing_bookmark:?}");
+            output_document.add_bookmark(existing_bookmark, output_bookmark_parent);
+        }
+        output_bookmark_parent = None;
+        first_page_of_doc = true;
+        output_documents_objects.extend(iterated_document.objects);
     }
 
     // Catalog and Pages are mandatory
@@ -457,7 +527,7 @@ where
     let mut pages_object: Option<(ObjectId, Object)> = None;
 
     // Process all objects except "Page" type
-    for (object_id, object) in documents_objects.iter() {
+    for (object_id, object) in output_documents_objects.iter() {
         // We have to ignore "Page" (as are processed later), "Outlines" and "Outline" objects
         // All other objects should be collected and inserted into the main Document
         match object.type_name().unwrap_or(b"") {
@@ -497,7 +567,7 @@ where
             b"Outlines" => {} // Ignored, not supported yet
             b"Outline" => {}  // Ignored, not supported yet
             _ => {
-                document.objects.insert(*object_id, object.clone());
+                output_document.objects.insert(*object_id, object.clone());
             }
         }
     }
@@ -508,12 +578,12 @@ where
         return;
     }
     // Iterate over all "Page" objects and collect into the parent "Pages" created before
-    for (object_id, object) in documents_pages.iter() {
+    for (object_id, object) in output_documents_pages.iter() {
         if let Ok(dictionary) = object.as_dict() {
             let mut dictionary = dictionary.clone();
             dictionary.set("Parent", pages_object.as_ref().unwrap().0);
 
-            document
+            output_document
                 .objects
                 .insert(*object_id, Object::Dictionary(dictionary));
         }
@@ -533,18 +603,18 @@ where
         let mut dictionary = dictionary.clone();
 
         // Set new pages count
-        dictionary.set("Count", documents_pages.len() as u32);
+        dictionary.set("Count", output_documents_pages.len() as u32);
 
         // Set new "Kids" list (collected from documents pages) for "Pages"
         dictionary.set(
             "Kids",
-            documents_pages
+            output_documents_pages
                 .into_keys()
                 .map(Object::Reference)
                 .collect::<Vec<_>>(),
         );
 
-        document
+        output_document
             .objects
             .insert(pages_object.0, Object::Dictionary(dictionary));
     }
@@ -555,31 +625,33 @@ where
         dictionary.set("Pages", pages_object.0);
         dictionary.remove(b"Outlines"); // Outlines not supported in merged PDFs
 
-        document
+        output_document
             .objects
             .insert(catalog_object.0, Object::Dictionary(dictionary));
     }
 
-    document.trailer.set("Root", catalog_object.0);
+    output_document.trailer.set("Root", catalog_object.0);
 
     // Update the max internal ID as wasn't updated before due to direct objects insertion
-    document.max_id = document.objects.len() as u32;
+    output_document.max_id = output_document.objects.len() as u32;
 
     // Reorder all new Document objects
-    document.renumber_objects();
+    output_document.renumber_objects();
 
     //Set any Bookmarks to the First child if they are not set to a page
-    document.adjust_zero_pages();
+    output_document.adjust_zero_pages();
 
     //Set all bookmarks to the PDF Object tree then set the Outlines to the Bookmark content map.
-    if let Some(n) = document.build_outline() {
-        if let Ok(Object::Dictionary(ref mut dict)) = document.get_object_mut(catalog_object.0) {
+    if let Some(n) = output_document.build_outline() {
+        if let Ok(Object::Dictionary(ref mut dict)) =
+            output_document.get_object_mut(catalog_object.0)
+        {
             dict.set("Outlines", Object::Reference(n));
         }
     }
 
-    document.compress();
-    document.save(output_path).unwrap();
+    output_document.compress();
+    output_document.save(output_path).unwrap();
     if !errors.is_empty() {
         let indices = errors
             .iter()
