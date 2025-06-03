@@ -1,5 +1,5 @@
 use indicatif::{ProgressBar, ProgressIterator};
-use lopdf::{Bookmark, Document, Object, ObjectId};
+use lopdf::{Document, Object, ObjectId};
 use pdfuse_utils::{
     error_t, get_registered_busy_indicator, get_registered_progress_iterator,
     get_registered_progress_iterator_parallel,
@@ -24,6 +24,7 @@ mod loaded_document;
 mod loaded_image;
 mod optional_thread;
 mod size_guide;
+mod bookmarks;
 use optional_thread::OptionalThread;
 
 /// Applies `f` to each element of `iter` and collects the results into a `Vec`
@@ -73,6 +74,8 @@ impl Display for Data {
         }
     }
 }
+
+
 
 /// Named struct containing 3 vector of SourcePaths, divided by their type.
 struct SplitPathsResult {
@@ -501,7 +504,7 @@ where
                         Bookmarks::IndexName => Some(format!("{} - {}", index, path.file_name())),
                     };
                     if let Some(txt) = bookmark_text {
-                        let bookmark = Bookmark::new(txt, [0.0, 0.0, 1.0], 0, object_id);
+                        let bookmark = lopdf::Bookmark::new(txt, [0.0, 0.0, 1.0], 0, object_id);
                         let new_parent = output_document.add_bookmark(bookmark, None);
                         output_bookmark_parent = Some(new_parent);
                     }
