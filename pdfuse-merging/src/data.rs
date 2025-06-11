@@ -24,7 +24,8 @@ mod loaded_document;
 mod loaded_image;
 mod optional_thread;
 mod size_guide;
-mod bookmarks;
+// mod bookmarks;
+// pub use bookmarks::extract_bookmarks;
 use optional_thread::OptionalThread;
 
 /// Applies `f` to each element of `iter` and collects the results into a `Vec`
