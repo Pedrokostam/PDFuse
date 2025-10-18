@@ -1,4 +1,4 @@
-use pdfuse_parameters::{SafePath, SourcePath};
+use pdfuse_parameters::{SafePath};
 use pdfuse_sizing::{CustomSize, Length};
 use pdfuse_utils::{debug_t, error_t};
 use lopdf::Document;
@@ -9,8 +9,6 @@ use std::{
 };
 
 use crate::{conditional_slow_down, error::{DocumentLoadError, LibreConversionError}};
-
-use super::{Imager, LoadedImage};
 
 #[derive(Debug)]
 pub struct LoadedDocument {

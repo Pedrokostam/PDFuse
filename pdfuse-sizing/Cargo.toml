@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 once_cell = "1.21.3"
 printpdf = {workspace = true}
-regex = "1.11.1"
+regex = "1.12.1"
 serde.workspace=true
 
 [lints]

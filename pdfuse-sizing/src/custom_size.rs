@@ -145,6 +145,7 @@ impl Size for CustomSize {
 
     fn vertical(&self) -> Length {
         self.vertical
+
     }
 
     fn fit_size(&self, other_size: &CustomSize) -> f64 {

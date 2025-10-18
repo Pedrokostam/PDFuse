@@ -5,24 +5,29 @@ rust_i18n::i18n!();
 
 fn main() {
     let _ = main_impl().map_err(|e| log::error!("{e}"));
-    finish_progress_bar();
+    let _ = finish_progress_bar().map_err(|e| log::error!("{e}"));
 }
 fn main_impl() -> Result<(), ConfigError> {
     pdfuse_utils::init_logger();
     log::set_max_level(log::LevelFilter::Trace);
+
     let start_time_parse = std::time::Instant::now();
+
     let args: pdfuse_commandline::Args = pdfuse_commandline::get_args()?;
     let params_with_paths: ParametersWithPaths = args.to_parameters();
+
     let end_time_parse: std::time::Instant = std::time::Instant::now();
-    debug_t!("debug.command_parsed_time",millis = (end_time_parse-start_time_parse).as_millis());
+    let millis_parse = (end_time_parse - start_time_parse).as_millis();
+    debug_t!("debug.command_parsed_time", millis = millis_parse);
 
     let start_time_processing = std::time::Instant::now();
-    let (files, parameters) = params_with_paths.deconstruct();
-    pdfuse_merging::load(files,&parameters);
-    let end_time_processing = std::time::Instant::now();
-    info_t!("time_taken",duration_seconds=(end_time_processing-start_time_processing).as_secs_f32());
 
-    
+    let (files, parameters) = params_with_paths.deconstruct();
+    pdfuse_merging::load(files, &parameters);
+
+    let end_time_processing = std::time::Instant::now();
+    let millis_merge = (end_time_parse - start_time_parse).as_millis();
+    info_t!("time_taken", duration_seconds = millis_merge);
     // #[cfg(debug_assertions)]
     // log::set_max_level(log::LevelFilter::Trace);
     // #[cfg(not(debug_assertions))]

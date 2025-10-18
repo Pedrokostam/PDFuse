@@ -5,9 +5,7 @@ use colored::{ColoredString, Colorize};
 use indicatif::{MultiProgress, ProgressBar};
 use log::{Level, LevelFilter, Metadata, Record};
 use once_cell::{self, sync::OnceCell};
-pub static CONSOLE_LOGGER: ConsoleLogger = ConsoleLogger;
 
-// static LOGGY: OnceCell<ConsoleLogger> = OnceCell::new();
 static MULTI: OnceCell<MultiProgress> = OnceCell::new();
 
 pub struct ConsoleLogger;
@@ -84,9 +82,10 @@ pub fn set_max_level(lvl: impl Into<LevelFilter>) {
     log::set_max_level(lvl.into());
 }
 
-pub fn finish_progress_bar(){
-     MULTI
+pub fn finish_progress_bar() -> Result<(), std::io::Error> {
+    MULTI
         .get()
         .expect("Bridge logger has not been set!")
-        .clear();
+        .clear()
 }
+

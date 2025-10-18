@@ -76,8 +76,6 @@ impl Display for Data {
     }
 }
 
-
-
 /// Named struct containing 3 vector of SourcePaths, divided by their type.
 struct SplitPathsResult {
     images: Vec<Indexed<SafePath>>,

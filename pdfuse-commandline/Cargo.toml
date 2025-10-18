@@ -7,14 +7,14 @@ edition = "2024"
 pdfuse-sizing = { path = "../pdfuse-sizing" }
 pdfuse-utils = { path = "../pdfuse-utils" }
 pdfuse-parameters = { path = "../pdfuse-parameters" }
-clap = { version = "4.5.38", features = ["color","derive","cargo","unicode","wrap_help","usage","help","error-context","suggestions","string"] }
+clap = { version = "4.5.48", features = ["color","derive","cargo","unicode","wrap_help","usage","help","error-context","suggestions","string"] }
 log.workspace = true
 serde.workspace=true
-toml = { version = "0.8.22", features = ["preserve_order"] }
+toml = { version = "0.9.8", features = ["preserve_order"] }
 indoc = "2"
 color-print = "0.3.7"
 rust-i18n.workspace = true
-chrono = "0.4.41"
+chrono = "0.4.42"
 
 [lints]
 workspace = true

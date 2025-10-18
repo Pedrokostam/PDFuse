@@ -351,10 +351,8 @@ fn get_preset_config(matches: &ArgMatches) -> Result<Option<Args>, ConfigError> 
         (true, false) => Err(ConfigError::MissingConfigError(config_path))?,
     };
     // set localization again, in case command-line had no lang, but preset does.
-    if !lang_specified {
-        if let Some(c) = &preset {
-            c.set_localization()
-        }
+    if !lang_specified && let Some(c) = &preset {
+        c.set_localization()
     }
     Ok(preset)
 }
@@ -388,7 +386,7 @@ where
     let args = get_args_impl(matches, preset);
     // Save only if requested
     args.save_config()?;
-    if args.what_if{
+    if args.what_if {
         Err(ConfigError::WhatIfMode)?
     }
     Ok(args)
@@ -464,8 +462,8 @@ fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
     } else {
         set_if_present!(matches, base, force_image_page_fallback_size, bool);
     }
-
     set_if_present!(matches, base, alphabetic_file_sorting, bool);
+    set_if_present!(matches, base, bookmarks, Bookmarks);
     base
 }
 
@@ -486,6 +484,9 @@ mod tests {
         }
     }
 
+    /// Makes sure that default command-line arguments **do** match the default
+    /// values for struct `Args`.
+    /// Every parameter must be the same.
     #[test]
     pub fn default_matches_default() {
         let test_file = SafePath::new("file");
@@ -499,7 +500,7 @@ mod tests {
         );
         assert_eq!(def, cmd);
     }
-
+    /// Makes sure that all long help messages **do** start with their corresponding short messages.
     #[test]
     pub fn short_long_help_start_match() {
         let cmd = get_command();
@@ -513,6 +514,9 @@ mod tests {
             assert_eq!(start_long, short, "{}", argument.get_id());
         }
     }
+    /// Makes sure that the default command-line arguments **do** differ
+    /// from fully-custom struct of `Args`.
+    /// Every parameter must differ.
     #[test]
     pub fn non_default_differs_default() {
         let def = Args {
@@ -531,7 +535,7 @@ mod tests {
             log: LogLevel::Off,
             margin: IsoPaper::c(4).into(),
             force_image_page_fallback_size: !Args::default().force_image_page_fallback_size,
-            bookmarks:Bookmarks::None,
+            bookmarks: Bookmarks::None,
             libreoffice_path: vec!["none".into()],
             output_directory: "dir".into(),
             output_file: Some("a".into()),
@@ -553,6 +557,9 @@ mod tests {
         "no_lossless",
         "no_config",
     ];
+    /// Makes sure that non-default command-line parameters **do** differ
+    /// from the default instance of `Args`.
+    /// Every parameter must differ.
     #[test]
     pub fn default_differs_non_default() {
         let def = Args::default();
@@ -589,6 +596,8 @@ mod tests {
             "off",
             "--libreoffice-path",
             "different_path",
+            "--bookmark",
+            "none",
         ];
         let matches = get_command().get_matches_from(arg_strings);
         let parsed = get_args_impl(matches.clone(), None);
@@ -597,9 +606,10 @@ mod tests {
             if IGNORED.contains(&name.as_ref()) {
                 continue;
             }
+            let value = matches.value_source(a.get_id().as_str());
+            let value_ok = value == Some(clap::parser::ValueSource::CommandLine);
             assert!(
-                matches.value_source(a.get_id().as_str())
-                    == Some(clap::parser::ValueSource::CommandLine),
+                value_ok,
                 "A commandline parameter was not set! {}",
                 a.get_id()
             );
