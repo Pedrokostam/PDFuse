@@ -54,7 +54,7 @@ By default, files are processed in the order given.
 Enabling this option will sort all found files by path after collection.
 Useful when using drag & drop, as input order may be unpredictable."#;
 
-pub const BOOKMARKS_HELP: &str = "Add bookmarks to output PDF, containing the filename and index of added items.";
+pub const BOOKMARKS_HELP: &str = "Add bookmarks to output PDF, which may contain the filename and index of added items.";
 
 pub const CONFIG_HELP: &str = "Load a configuration file with preset options.";
 
@@ -125,7 +125,8 @@ pub const RECURSION_LIMIT_HELP: &str = "Recursion depth limit for directories.";
 pub const RECURSION_LIMIT_LONG_HELP: &str = r#"Recursion depth limit for directories.
 
 0 — only files in specified directory are scanned.
-1 — files in any immediate subfolders are also scanned."#;
+1 — files in any immediate subfolders are also scanned.
+and so on"#;
 
 pub const SAVE_CONFIG_HELP: &str =
     "Save current input options to a TOML config file. Use `-` to output to stdout.";

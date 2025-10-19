@@ -1,4 +1,3 @@
-use indicatif::{ProgressBar, ProgressIterator};
 use lopdf::{Document, Object, ObjectId};
 use pdfuse_utils::{
     error_t, get_registered_busy_indicator, get_registered_progress_iterator,

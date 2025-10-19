@@ -43,7 +43,7 @@ pub fn get_command() -> Command {
 
     let save_config = Arg::new("save_config")
         .long("save-config")
-        .alias("saveconfig")
+        .alias("saveConfig")
         .short('s')
         .value_name("FILEPATH")
         .value_hint(ValueHint::FilePath)
@@ -53,7 +53,7 @@ pub fn get_command() -> Command {
     let confirm_exit = Arg::new("confirm_exit")
         .short('x')
         .long("confirm-exit")
-        .alias("confirmexit")
+        .alias("confirmExit")
         .alias("confirm")
         .action(ArgAction::SetTrue)
         .default_value(def.confirm_exit.to_string())
@@ -61,7 +61,7 @@ pub fn get_command() -> Command {
 
     let what_if = Arg::new("what_if")
         .long("what-if")
-        .alias("whatif")
+        .alias("whatIf")
         .action(ArgAction::SetTrue)
         .default_value(def.what_if.to_string())
         .help(WHAT_IF_HELP)
@@ -92,10 +92,10 @@ pub fn get_command() -> Command {
 
     let image_page_fallback_size = Arg::new("image_page_fallback_size")
         .short('p')
-        .long("image-page-fallback-size")
-        .alias("imagepagefallbacksize")
+        .long("image-page-size")
+        .alias("imagePageSize")
         .visible_alias("image-size")
-        .alias("imagesize")
+        .alias("imageSize")
         .value_name("PAGE_SIZE")
         .default_value(def.image_page_fallback_size.to_string())
         .value_parser(PageSize::try_from_string)
@@ -140,10 +140,10 @@ pub fn get_command() -> Command {
         .help(MARGIN_HELP);
 
     let force_image_page_fallback_size = Arg::new("force_image_page_fallback_size")
-        .long("force-image-page-fallback-size")
+        .long("force-image-page-size")
         .visible_alias("force-size")
         .alias("forcesize")
-        .alias("forceimagepagefallbacksize")
+        .alias("forceImagePageSize")
         .short('f')
         .action(ArgAction::SetTrue)
         .default_value("false")
@@ -152,7 +152,7 @@ pub fn get_command() -> Command {
     let alphabetic_file_sorting = Arg::new("alphabetic_file_sorting")
         .long("alphabetic-file-sorting")
         .visible_alias("afs")
-        .alias("alphabeticfilesorting")
+        .alias("alphabeticFileSorting")
         .alias("alphabetic")
         .action(ArgAction::SetTrue)
         .default_value(def.alphabetic_file_sorting.to_string())
@@ -181,7 +181,7 @@ pub fn get_command() -> Command {
     let output_directory = Arg::new("output_directory")
         .short('d')
         .long("output-directory")
-        .alias("outputdirectory")
+        .alias("outputDirectory")
         .value_name("OUTPUT_DIRECTORY")
         .value_hint(ValueHint::DirPath)
         .default_value(def.output_directory.to_string())
@@ -192,7 +192,7 @@ pub fn get_command() -> Command {
     let output_file = Arg::new("output_file")
         .short('o')
         .long("output-file")
-        .alias("outputfile")
+        .alias("outputFile")
         .value_name("OUTPUT_FILEPATH")
         .value_hint(ValueHint::FilePath)
         .value_parser(value_parser!(SafePath))
@@ -207,7 +207,7 @@ pub fn get_command() -> Command {
     let no_lossless = Arg::new("no_lossless")
         .long("no-lossless")
         .short('L')
-        .alias("nolossless")
+        .alias("noLossless")
         .visible_alias("lossy")
         .hide_short_help(true)
         .action(ArgAction::SetTrue);
@@ -216,16 +216,15 @@ pub fn get_command() -> Command {
         .long("no-force-image-page-fallback-size")
         .short('F')
         .visible_alias("no-force-size")
-        .alias("noforceimagepagefallbacksize")
-        .alias("noforcesize")
-        .alias("noforce")
+        .alias("noForceImagePageSize")
+        .alias("noForcesize")
+        .alias("noForce")
         .hide_short_help(true)
         .action(ArgAction::SetTrue);
 
     let no_implicit_config = Arg::new("no_config")
         .long("no-config")
-        .alias("noconfig")
-        .alias("noconfig")
+        .alias("noConfig")
         .short('C')
         .hide_short_help(true)
         .action(ArgAction::SetTrue);
@@ -360,6 +359,7 @@ fn get_preset_config(matches: &ArgMatches) -> Result<Option<Args>, ConfigError> 
 pub fn get_args() -> Result<Args, ConfigError> {
     get_args_from_impl(std::env::args_os())
 }
+
 pub fn get_args_from<I, T>(items: I) -> Result<Args, ConfigError>
 where
     I: IntoIterator<Item = T>,
@@ -367,6 +367,7 @@ where
 {
     get_args_from_impl(items)
 }
+
 /// <ol>
 /// <li>Creates a parser.</li>
 /// <li>Parses command-line.</li>
@@ -374,7 +375,6 @@ where
 /// <li>Sets language.</li>
 /// <li>Sets loglevel.</li>
 /// </ol>
-///
 fn get_args_from_impl<I, T>(items: I) -> Result<Args, ConfigError>
 where
     I: IntoIterator<Item = T>,
