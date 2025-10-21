@@ -7,7 +7,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::errors::{LengthParseError, UnitParseError};
+use crate::error::{LengthParseError, UnitParseError};
 
 use super::{parsing::ParseResult, unit::Unit};
 
@@ -228,7 +228,6 @@ impl From<Length> for printpdf::units::Pt {
         printpdf::units::Pt(val.pt() as f32)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

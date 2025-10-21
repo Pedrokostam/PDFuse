@@ -1,6 +1,7 @@
 use pdfuse_parameters::{Parameters, SourcePath};
-use pdfuse_sizing::{CustomSize, Size};
-use pdfuse_utils::{log::debug, Indexed};
+use pdfuse_sizing::page::CustomSize;
+use pdfuse_sizing::Size;
+use pdfuse_utils::Indexed;
 
 use super::{Data, PdfResult};
 
@@ -89,8 +90,8 @@ impl SizeGuide {
                 Ok(data) => match data {
                     Data::Image(_) => {
                         let last_val = size_map.last().unwrap_or(&fallback);
-                        size_map.resize(ind_res.index()+1, *last_val);
-                    }, // there should be no images here anyway
+                        size_map.resize(ind_res.index() + 1, *last_val);
+                    } // there should be no images here anyway
                     Data::Document(loaded_document) => {
                         // get the last value in map
                         let last_val = size_map.last().unwrap_or(&fallback);
@@ -112,7 +113,7 @@ impl SizeGuide {
     }
 
     pub fn get_size(&self, index: usize) -> CustomSize {
-        if index >= self.map.len(){
+        if index >= self.map.len() {
             // fail-safe - if we try to get an index that goes further than the map, we take the last value.
             return *self.map.last().unwrap_or(&self.fallback);
         }

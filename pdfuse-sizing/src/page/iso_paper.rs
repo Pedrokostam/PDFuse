@@ -1,13 +1,12 @@
-use core::f64;
 use std::fmt::{Debug, Display};
 
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::errors::IsoPaperError;
-
-use super::{CustomSize, Length, Size};
+use super::CustomSize;
+use crate::error::IsoPaperError;
+use crate::{Length, Size, TransposableSize};
 
 /// All lengths of paper from A0 to A13, first element vertical, last horizontal
 pub(crate) const A_LENGTHS: &[f64] = &[
@@ -173,7 +172,7 @@ impl Display for IsoPaper {
         f.pad(&self.iso_name())
     }
 }
-impl Size for IsoPaper {
+impl TransposableSize for IsoPaper {
     fn transposed(&self) -> Self {
         IsoPaper {
             is_transposed: !self.is_transposed,
@@ -184,7 +183,8 @@ impl Size for IsoPaper {
     fn transpose(&mut self) {
         self.is_transposed = !self.is_transposed;
     }
-
+}
+impl Size for IsoPaper {
     fn horizontal(&self) -> Length {
         if !self.is_transposed {
             self.short
@@ -213,6 +213,7 @@ impl Size for IsoPaper {
     }
 }
 impl Default for IsoPaper {
+    /// The most common size - A4.
     fn default() -> Self {
         Self::new(IsoPaperType::A, 4, false)
     }
@@ -252,7 +253,7 @@ mod tests {
         ];
         for (text, paper) in test_vals {
             let parsed =
-                IsoPaper::try_from_string(text).expect(&format!("Failed parsing '{text}'" ));
+                IsoPaper::try_from_string(text).expect(&format!("Failed parsing '{text}'"));
             assert_eq!(parsed, paper);
         }
     }

@@ -26,7 +26,7 @@ mod tests {
     };
     const MEDIABOX_PATTERN: &str = r"^MediaBox.*\s(?P<W>\d+\.\d\d)\s+(?P<H>\d+\.\d\d)";
     use pdfuse_parameters::Parameters;
-    use pdfuse_sizing::{IsoPaper, PageSize};
+    use pdfuse_sizing::{CustomSize, IsoPaper, Length, PageSize, TransposableSize, UsPaper};
 
     use super::*;
     fn get_path_crate() -> PathBuf {
@@ -72,7 +72,22 @@ mod tests {
     #[test]
     fn can_merge_pdfs() {
         let path = get_path_workspace();
-        let input:Vec<(&Path,PageSize)> = vec![ ("",PageSize::Standard(IsoPaper::a(3))) ];
+        let input:Vec<(&str,PageSize)> = vec![
+            ("",PageSize::Standard(IsoPaper::a(3))),
+            ("100x100cm.pdf", PageSize::Custom(CustomSize::from_centimeters(100, 100))),
+            ("A3.pdf", PageSize::Standard(IsoPaper::a(3))),
+            ("A3P.pdf", PageSize::Standard(IsoPaper::a_transposed(3))),
+            ("A4.pdf", PageSize::Standard(IsoPaper::a(4))),
+            ("A4P.pdf", PageSize::Standard(IsoPaper::a_transposed(4))),
+            ("Letter.pdf", PageSize::American(UsPaper::Letter)),
+            ("LetterP.pdf", PageSize::American(UsPaper::Letter).transposed()),
+            ("Lorem30x10cm.pdf", PageSize::Custom(CustomSize::from_centimeters(30, 10))),
+
+
+
+
+
+        ];
         let params = Parameters {
             ..Default::default()
         };

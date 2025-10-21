@@ -2,7 +2,7 @@ use crate::{Args, commandline_help::*};
 use clap::builder::styling;
 use clap::{Arg, ArgAction, ArgGroup, ArgMatches, Command, ValueHint, value_parser};
 use pdfuse_parameters::{Bookmarks, ConfigError, LogLevel, SafeDestination, SafePath};
-use pdfuse_sizing::{CustomSize, PageSize};
+use pdfuse_sizing::page::{CustomSize, PageSize};
 use pdfuse_utils::set_localization;
 
 const DEFAULT_CONFIG_PATH: &str = "config_auto.toml";
@@ -469,7 +469,8 @@ fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
 
 #[cfg(test)]
 mod tests {
-    use pdfuse_sizing::IsoPaper;
+
+    use pdfuse_sizing::page::IsoPaper;
 
     use super::*;
 

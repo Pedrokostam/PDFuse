@@ -1,12 +1,9 @@
-use std::time::Instant;
-
 use image::{imageops::FilterType, DynamicImage};
 use lopdf::Document;
 use pdfuse_parameters::SafePath;
-use pdfuse_sizing::{CustomSize, Length, Size};
+use pdfuse_sizing::page::CustomSize;
+use pdfuse_sizing::{Length, Size};
 use pdfuse_utils::debug_t;
-use pdfuse_utils::log::debug;
-// use lopdf::Document, Image, ImageTransform, ImageXObject, PdfDocumentReference, PdfLayerReference,
 use printpdf::ImageCompression;
 use printpdf::{ImageOptimizationOptions, PdfDocument, PdfPage, RawImageData, RawImageFormat};
 use printpdf::{PdfSaveOptions, PdfWarnMsg, RawImage};

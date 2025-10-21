@@ -1,7 +1,6 @@
-
-use pdfuse_sizing::{CustomSize, PageSize};
+use crate::{Bookmarks, SafePath, SourcePath};
+use pdfuse_sizing::page::{CustomSize, PageSize};
 use pdfuse_utils::Indexed;
-use crate::{ Bookmarks, SafePath, SourcePath};
 
 /// Parameters used during conversion, creation, and merging of PDFs.
 #[derive(Debug, Clone, Default)]
@@ -16,7 +15,7 @@ pub struct Parameters {
     pub margin: CustomSize,
     pub force_image_page_fallback_size: bool,
     pub alphabetic_file_sorting: bool,
-    pub bookmarks:Bookmarks,
+    pub bookmarks: Bookmarks,
     pub libreoffice_path: Option<SafePath>,
     pub output_file: SafePath,
 }

@@ -1,14 +1,18 @@
-use pdfuse_parameters::{SafePath};
-use pdfuse_sizing::{CustomSize, Length};
-use pdfuse_utils::{debug_t, error_t};
 use lopdf::Document;
+use pdfuse_parameters::SafePath;
+use pdfuse_sizing::page::CustomSize;
+use pdfuse_sizing::Length;
+use pdfuse_utils::{debug_t, error_t};
 use std::{
     fmt::{Debug, Display},
-    path::{Path},
+    path::Path,
     process::Command,
 };
 
-use crate::{conditional_slow_down, error::{DocumentLoadError, LibreConversionError}};
+use crate::{
+    conditional_slow_down,
+    error::{DocumentLoadError, LibreConversionError},
+};
 
 #[derive(Debug)]
 pub struct LoadedDocument {
@@ -32,8 +36,8 @@ impl Display for LoadedDocument {
     }
 }
 impl LoadedDocument {
-    pub fn from_document_like(source_path:SafePath,data:Box<Document>)->Self{
-        LoadedDocument{source_path,data}
+    pub fn from_document_like(source_path: SafePath, data: Box<Document>) -> Self {
+        LoadedDocument { source_path, data }
     }
     pub fn page_count(&self) -> usize {
         self.data.get_pages().len()
@@ -70,8 +74,8 @@ impl LoadedDocument {
                 vertical,
             });
         }
-        if page_size.is_none(){
-            error_t!("error.invalid_mediabox",document=self);
+        if page_size.is_none() {
+            error_t!("error.invalid_mediabox", document = self);
         }
         page_size
     }
@@ -90,7 +94,8 @@ pub fn convert_document_to_pdf(
     output_dir: &SafePath,
 ) -> Result<SafePath, LibreConversionError> {
     let extension_path = document_path.with_extension("pdf");
-    let name = extension_path.as_path()
+    let name = extension_path
+        .as_path()
         .file_name()
         .expect("Changing extension to pdf shouldn't fail");
     let temp_path = output_dir.join(name);
@@ -109,4 +114,3 @@ pub fn convert_document_to_pdf(
         false => Err(LibreConversionError::Status(output.status)),
     }
 }
-

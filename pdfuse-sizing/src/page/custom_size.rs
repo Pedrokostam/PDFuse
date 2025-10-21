@@ -7,9 +7,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::errors::LengthParseError;
-
-use super::{iso_paper::IsoPaper, length::Length, page_size::PageSize, size::Size, unit::Unit};
+use crate::{error::LengthParseError, page::{IsoPaper, PageSize, UsPaper}, Length, Size, TransposableSize, Unit};
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 #[serde(try_from = "String")]
@@ -123,7 +121,7 @@ impl Sub<Self> for CustomSize {
     }
 }
 
-impl Size for CustomSize {
+impl TransposableSize for CustomSize {
     fn transposed(&self) -> Self {
         CustomSize {
             horizontal: self.vertical,
@@ -134,7 +132,9 @@ impl Size for CustomSize {
     fn transpose(&mut self) {
         std::mem::swap(&mut self.vertical, &mut self.horizontal);
     }
+}
 
+impl Size for CustomSize {
     fn to_custom_size(&self) -> CustomSize {
         *self
     }
@@ -145,7 +145,6 @@ impl Size for CustomSize {
 
     fn vertical(&self) -> Length {
         self.vertical
-
     }
 
     fn fit_size(&self, other_size: &CustomSize) -> f64 {
@@ -247,12 +246,18 @@ impl From<IsoPaper> for CustomSize {
         value.to_custom_size()
     }
 }
+impl From<UsPaper> for CustomSize {
+    fn from(value: UsPaper) -> Self {
+        value.to_custom_size()
+    }
+}
 
 impl From<PageSize> for CustomSize {
     fn from(value: PageSize) -> Self {
         match value {
             PageSize::Standard(iso_paper) => iso_paper.into(),
             PageSize::Custom(custom_size) => custom_size,
+            PageSize::American(us_paper) => us_paper.into(),
         }
     }
 }
