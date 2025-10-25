@@ -1,7 +1,7 @@
 use image::{imageops::FilterType, DynamicImage};
 use lopdf::Document;
-use pdfuse_parameters::SafePath;
-use pdfuse_sizing::page::CustomSize;
+use pdfuse_parameters::path::SafePath;
+use pdfuse_sizing::page::CustomPage;
 use pdfuse_sizing::{Length, Size};
 use pdfuse_utils::debug_t;
 use printpdf::ImageCompression;
@@ -55,9 +55,9 @@ fn dynamic_to_pdf(image: DynamicImage, path: SafePath) -> Result<RawImage, Image
 
 pub struct Imager {
     pub(crate) document: PdfDocument,
-    pub(crate) page_size: CustomSize,
+    pub(crate) page_size: CustomPage,
     pub(crate) dpi: f64,
-    pub(crate) margin: CustomSize,
+    pub(crate) margin: CustomPage,
     pub(crate) pages: Vec<PdfPage>,
     pub(crate) quality: u8,
     pub(crate) lossless: bool,
@@ -106,13 +106,13 @@ impl Imager {
         title: &str,
         page_size: PageLike,
         dpi: FloatLike,
-        margin: CustomSize,
+        margin: CustomPage,
         quality: u8,
         lossless: bool,
     ) -> Self
     where
         FloatLike: Into<f64>,
-        PageLike: Into<CustomSize>,
+        PageLike: Into<CustomPage>,
     {
         Imager {
             document: printpdf::PdfDocument::new(title),
@@ -160,7 +160,7 @@ impl Imager {
     }
 }
 
-fn adjust_to_dpi(image: LoadedImage, draw_area: CustomSize, dpi: f64) -> DynamicImage {
+fn adjust_to_dpi(image: LoadedImage, draw_area: CustomPage, dpi: f64) -> DynamicImage {
     let horizontal_pixel_max = draw_area.horizontal.inch() * dpi;
     let vertical_pixel_max = draw_area.vertical.inch() * dpi;
     let image_width = image.width() as f64;
@@ -189,17 +189,17 @@ fn adjust_to_dpi(image: LoadedImage, draw_area: CustomSize, dpi: f64) -> Dynamic
         FilterType::Lanczos3,
     )
 }
-fn get_image_size(image: &DynamicImage, dpi: f64) -> CustomSize {
-    CustomSize {
+fn get_image_size(image: &DynamicImage, dpi: f64) -> CustomPage {
+    CustomPage {
         horizontal: Length::from_inches(image.width() as f64 / dpi),
         vertical: Length::from_inches(image.height() as f64 / dpi),
     }
 }
 fn get_image_translation(
-    page_size: CustomSize,
-    image_size: CustomSize,
-    margin: CustomSize,
-) -> CustomSize {
+    page_size: CustomPage,
+    image_size: CustomPage,
+    margin: CustomPage,
+) -> CustomPage {
     let margined_size = page_size - margin;
     // starting from bottom left (xD?)
     let difference = margined_size - image_size;

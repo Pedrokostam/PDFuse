@@ -1,6 +1,6 @@
 use lopdf::Document;
-use pdfuse_parameters::SafePath;
-use pdfuse_sizing::page::CustomSize;
+use pdfuse_parameters::path::SafePath;
+use pdfuse_sizing::page::CustomPage;
 use pdfuse_sizing::Length;
 use pdfuse_utils::{debug_t, error_t};
 use std::{
@@ -45,8 +45,8 @@ impl LoadedDocument {
     pub fn source_path(&self) -> &SafePath {
         &self.source_path
     }
-    pub fn page_size(&self) -> Option<CustomSize> {
-        let mut page_size: Option<CustomSize> = None;
+    pub fn page_size(&self) -> Option<CustomPage> {
+        let mut page_size: Option<CustomPage> = None;
         for page in self.data.page_iter() {
             let Ok(media_box_array) = self
                 .data
@@ -69,7 +69,7 @@ impl LoadedDocument {
                 debug_t!("debug.zero_mediabox", document = self);
                 continue;
             }
-            page_size = Some(CustomSize {
+            page_size = Some(CustomPage {
                 horizontal,
                 vertical,
             });

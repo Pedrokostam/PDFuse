@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::safe_path::SafePath;
+use super::SafePath;
 
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,Serialize,Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum SafeDestination {
     File(SafePath),
     StdOut,
@@ -31,7 +30,7 @@ impl From<&clap::builder::OsStr> for SafeDestination {
         SafeDestination::File(value.into())
     }
 }
-impl From<&str> for SafeDestination{
+impl From<&str> for SafeDestination {
     fn from(value: &str) -> Self {
         SafeDestination::from(std::ffi::OsStr::new(value))
     }
@@ -47,7 +46,7 @@ impl SafeDestination {
         Ok(())
     }
 
-    pub fn exists(&self)->bool{
+    pub fn exists(&self) -> bool {
         match self {
             SafeDestination::File(safe_path) => safe_path.exists(),
             _ => true,

@@ -1,9 +1,9 @@
-mod custom_size;
-mod  page_size;
+mod custom_page;
+mod  page;
 mod iso_paper;
 mod  us_paper;
 
-pub use custom_size::CustomSize;
+pub use custom_page::CustomPage;
 pub use iso_paper::IsoPaper;
 pub use us_paper::UsPaper;
-pub use page_size::PageSize;
+pub use page::Page;

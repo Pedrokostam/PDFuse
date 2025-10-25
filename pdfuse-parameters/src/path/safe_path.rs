@@ -80,6 +80,7 @@ fn normalize_path(path: &Path) -> PathBuf {
     }
     output
 }
+
 /// Wrapper around a `PathBuf` providing helper methods
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SafePath(PathBuf);
@@ -92,15 +93,18 @@ impl SafePath {
     pub fn to_display_string(&self) -> String {
         path_to_string(self)
     }
+
     pub fn new(path: impl AsRef<Path>) -> Self {
         let p = path.as_ref();
         SafePath(normalize_path(p))
     }
+
     #[inline]
     #[must_use]
     pub fn is_executable(&self) -> bool {
         is_executable(self)
     }
+
     pub fn write_to(&self, data: &[u8]) -> io::Result<()> {
         if let Some(parent) = self.parent() {
             // dont need absolute path - working dir must exists anyway
@@ -114,11 +118,13 @@ impl SafePath {
         }
         std::fs::write(self, data)
     }
+
     #[inline]
     #[must_use]
     pub fn with_extension(&self, extension: impl AsRef<std::ffi::OsStr>) -> Self {
         self.0.with_extension(extension).into()
     }
+
     #[inline]
     #[must_use]
     pub fn join(&self, path: impl AsRef<Path>) -> Self {
@@ -128,6 +134,7 @@ impl SafePath {
     pub fn get_absolute(&self) -> Result<SafePath, io::Error> {
         std::path::absolute(self).map(SafePath::from)
     }
+
     pub fn as_path(&self) -> &Path {
         self.as_ref()
     }
@@ -139,13 +146,14 @@ impl SafePath {
             .to_string_lossy()
             .to_string()
     }
-
 }
+
 impl Default for SafePath {
     fn default() -> Self {
         SafePath::new("")
     }
 }
+
 impl Deref for SafePath {
     type Target = Path;
 
@@ -153,21 +161,25 @@ impl Deref for SafePath {
         &self.0
     }
 }
+
 impl AsMut<PathBuf> for SafePath {
     fn as_mut(&mut self) -> &mut PathBuf {
         &mut self.0
     }
 }
+
 impl From<PathBuf> for SafePath {
     fn from(value: PathBuf) -> Self {
         SafePath::new(value)
     }
 }
+
 impl From<&Path> for SafePath {
     fn from(value: &Path) -> Self {
         SafePath::new(value)
     }
 }
+
 impl From<&str> for SafePath {
     fn from(value: &str) -> Self {
         SafePath::new(value)
@@ -179,11 +191,13 @@ impl From<&String> for SafePath {
         SafePath::new(value)
     }
 }
+
 impl From<&std::ffi::OsStr> for SafePath {
     fn from(value: &std::ffi::OsStr) -> Self {
         SafePath::new(value)
     }
 }
+
 impl From<&clap::builder::OsStr> for SafePath {
     fn from(value: &clap::builder::OsStr) -> Self {
         SafePath::new(value)
@@ -201,16 +215,19 @@ impl AsRef<Path> for SafePath {
         &self.0
     }
 }
+
 impl AsRef<std::ffi::OsStr> for SafePath {
     fn as_ref(&self) -> &std::ffi::OsStr {
         self.0.as_os_str()
     }
 }
+
 impl Borrow<Path> for SafePath {
     fn borrow(&self) -> &Path {
         &self.0
     }
 }
+
 impl fmt::Display for SafePath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_display_string())

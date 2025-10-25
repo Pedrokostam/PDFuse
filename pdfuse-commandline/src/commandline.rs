@@ -1,8 +1,10 @@
 use crate::{Args, commandline_help::*};
 use clap::builder::styling;
 use clap::{Arg, ArgAction, ArgGroup, ArgMatches, Command, ValueHint, value_parser};
-use pdfuse_parameters::{Bookmarks, ConfigError, LogLevel, SafeDestination, SafePath};
-use pdfuse_sizing::page::{CustomSize, PageSize};
+use pdfuse_parameters::error::ConfigError;
+use pdfuse_parameters::path::{SafeDestination, SafePath};
+use pdfuse_parameters::{Bookmarks,  LogLevel, };
+use pdfuse_sizing::page::{CustomPage, Page};
 use pdfuse_utils::set_localization;
 
 const DEFAULT_CONFIG_PATH: &str = "config_auto.toml";
@@ -44,6 +46,7 @@ pub fn get_command() -> Command {
     let save_config = Arg::new("save_config")
         .long("save-config")
         .alias("saveConfig")
+        .alias("saveconfig")
         .short('s')
         .value_name("FILEPATH")
         .value_hint(ValueHint::FilePath)
@@ -54,7 +57,8 @@ pub fn get_command() -> Command {
         .short('x')
         .long("confirm-exit")
         .alias("confirmExit")
-        .alias("confirm")
+        .alias("confirmexit")
+        .visible_alias("confirm")
         .action(ArgAction::SetTrue)
         .default_value(def.confirm_exit.to_string())
         .help(CONFIRM_EXIT_HELP);
@@ -62,6 +66,7 @@ pub fn get_command() -> Command {
     let what_if = Arg::new("what_if")
         .long("what-if")
         .alias("whatIf")
+        .alias("whatif")
         .action(ArgAction::SetTrue)
         .default_value(def.what_if.to_string())
         .help(WHAT_IF_HELP)
@@ -77,6 +82,8 @@ pub fn get_command() -> Command {
         .short('c')
         .long("config")
         .alias("load-config")
+        .alias("loadconfig")
+        .alias("loadConfig")
         .value_name("PATH_TO_CONFIG")
         .value_hint(ValueHint::FilePath)
         .value_parser(value_parser!(SafePath))
@@ -85,20 +92,24 @@ pub fn get_command() -> Command {
     let recursion_limit = Arg::new("recursion_limit")
         .long("recursion-limit")
         .alias("recursion")
+        .alias("recursionLimit")
+        .alias("recursionlimit")
         .default_value(def.recursion_limit.to_string())
         .value_parser(clap::value_parser!(usize))
         .help(RECURSION_LIMIT_HELP)
         .long_help(RECURSION_LIMIT_LONG_HELP);
 
-    let image_page_fallback_size = Arg::new("image_page_fallback_size")
+    let image_page_size = Arg::new("image_page_size")
         .short('p')
         .long("image-page-size")
         .alias("imagePageSize")
+        .alias("imagepagesize")
         .visible_alias("image-size")
         .alias("imageSize")
+        .alias("imagesize")
         .value_name("PAGE_SIZE")
-        .default_value(def.image_page_fallback_size.to_string())
-        .value_parser(PageSize::try_from_string)
+        .default_value(def.image_page_size.to_string())
+        .value_parser(Page::try_from_string)
         .help(IMAGE_PAGE_FALLBACK_SIZE_HELP)
         .long_help(IMAGE_PAGE_FALLBACK_SIZE_LONG_HELP);
 
@@ -136,14 +147,16 @@ pub fn get_command() -> Command {
         .long("margin")
         .value_name("MARGIN")
         .default_value(def.margin.to_string())
-        .value_parser(CustomSize::try_from_string)
+        .value_parser(CustomPage::try_from_string)
         .help(MARGIN_HELP);
 
-    let force_image_page_fallback_size = Arg::new("force_image_page_fallback_size")
+    let force_image_page_size = Arg::new("force_image_page_size")
         .long("force-image-page-size")
         .visible_alias("force-size")
         .alias("forcesize")
+        .alias("forceSize")
         .alias("forceImagePageSize")
+        .alias("forceimagepagesize")
         .short('f')
         .action(ArgAction::SetTrue)
         .default_value("false")
@@ -153,7 +166,9 @@ pub fn get_command() -> Command {
         .long("alphabetic-file-sorting")
         .visible_alias("afs")
         .alias("alphabeticFileSorting")
+        .alias("alphabeticfilesorting")
         .alias("alphabetic")
+        .short('a')
         .action(ArgAction::SetTrue)
         .default_value(def.alphabetic_file_sorting.to_string())
         .help(ALPHABETIC_FILE_SORTING_HELP)
@@ -170,6 +185,10 @@ pub fn get_command() -> Command {
     let libreoffice_path = Arg::new("libreoffice_path")
         .long("libreoffice-path")
         .visible_alias("libre")
+        .alias("libreOfficePath")
+        .alias("libreOffice")
+        .alias("libreofficepath")
+        .alias("libreoffice")
         .value_name("LIBREOFFICE_PATH")
         .num_args(1..)
         .value_parser(value_parser!(SafePath))
@@ -182,6 +201,7 @@ pub fn get_command() -> Command {
         .short('d')
         .long("output-directory")
         .alias("outputDirectory")
+        .alias("outputdirectory")
         .value_name("OUTPUT_DIRECTORY")
         .value_hint(ValueHint::DirPath)
         .default_value(def.output_directory.to_string())
@@ -193,6 +213,7 @@ pub fn get_command() -> Command {
         .short('o')
         .long("output-file")
         .alias("outputFile")
+        .alias("outputfile")
         .value_name("OUTPUT_FILEPATH")
         .value_hint(ValueHint::FilePath)
         .value_parser(value_parser!(SafePath))
@@ -208,25 +229,31 @@ pub fn get_command() -> Command {
         .long("no-lossless")
         .short('L')
         .alias("noLossless")
+        .alias("nolossless")
         .visible_alias("lossy")
         .hide_short_help(true)
         .action(ArgAction::SetTrue);
 
-    let no_force_image_page_fallback_size = Arg::new("no_force_image_page_fallback_size")
-        .long("no-force-image-page-fallback-size")
+    let no_force_image_page_size = Arg::new("no_force_image_page_size")
+        .long("no-force-image-page-size")
         .short('F')
         .visible_alias("no-force-size")
         .alias("noForceImagePageSize")
         .alias("noForcesize")
         .alias("noForce")
+        .alias("noforceimagepagesize")
+        .alias("noforcesize")
+        .alias("noforce")
         .hide_short_help(true)
         .action(ArgAction::SetTrue);
 
     let no_implicit_config = Arg::new("no_config")
         .long("no-config")
         .alias("noConfig")
+        .alias("noconfig")
         .short('C')
         .hide_short_help(true)
+        .help(NO_CONFIG_HELP)
         .action(ArgAction::SetTrue);
 
     let group_output = ArgGroup::new("Output")
@@ -249,8 +276,8 @@ pub fn get_command() -> Command {
         .arg(lossless.get_id())
         .arg(no_lossless.get_id());
     let imagesize_group = ArgGroup::new("ImageSize")
-        .arg(force_image_page_fallback_size.get_id())
-        .arg(no_force_image_page_fallback_size.get_id());
+        .arg(force_image_page_size.get_id())
+        .arg(no_force_image_page_size.get_id());
     let log_group = ArgGroup::new("Log").arg(log.get_id()).arg(quiet.get_id());
 
     Command::new("PDFuse")
@@ -275,9 +302,9 @@ pub fn get_command() -> Command {
         .arg(save_config)
         .arg(what_if)
         .next_help_heading("Imaging")
-        .arg(image_page_fallback_size)
-        .arg(force_image_page_fallback_size)
-        .arg(no_force_image_page_fallback_size)
+        .arg(image_page_size)
+        .arg(force_image_page_size)
+        .arg(no_force_image_page_size)
         .arg(margin)
         .arg(dpi)
         .arg(quality)
@@ -443,10 +470,10 @@ fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
     set_if_present_optional!(matches, base, output_file, SafePath);
     set_if_present!(matches, base, output_directory, SafePath);
     set_if_present!(matches, base, recursion_limit, usize);
-    set_if_present!(matches, base, image_page_fallback_size, PageSize);
+    set_if_present!(matches, base, image_page_size, Page);
     set_if_present!(matches, base, dpi, u16);
     set_if_present!(matches, base, quality, u8);
-    set_if_present!(matches, base, margin, CustomSize);
+    set_if_present!(matches, base, margin, CustomPage);
 
     set_if_present!(matches, base, confirm_exit, bool);
     set_if_present!(matches, base, what_if, bool);
@@ -457,10 +484,10 @@ fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
         set_if_present!(matches, base, lossless, bool);
     }
 
-    if matches.get_flag("no_force_image_page_fallback_size") {
-        base.force_image_page_fallback_size = false;
+    if matches.get_flag("no_force_image_page_size") {
+        base.force_image_page_size = false;
     } else {
-        set_if_present!(matches, base, force_image_page_fallback_size, bool);
+        set_if_present!(matches, base, force_image_page_size, bool);
     }
     set_if_present!(matches, base, alphabetic_file_sorting, bool);
     set_if_present!(matches, base, bookmarks, Bookmarks);
@@ -529,13 +556,13 @@ mod tests {
             language: Some("pl".to_owned()),
             config: Some("A".into()),
             recursion_limit: 1338,
-            image_page_fallback_size: IsoPaper::c(5).into(),
+            image_page_size: IsoPaper::c(5).into(),
             dpi: 420,
             quality: 13,
             lossless: !Args::default().lossless,
             log: LogLevel::Off,
             margin: IsoPaper::c(4).into(),
-            force_image_page_fallback_size: !Args::default().force_image_page_fallback_size,
+            force_image_page_size: !Args::default().force_image_page_size,
             bookmarks: Bookmarks::None,
             libreoffice_path: vec!["none".into()],
             output_directory: "dir".into(),
@@ -554,7 +581,7 @@ mod tests {
     const IGNORED: &[&str] = &[
         "config",
         "quiet",
-        "no_force_image_page_fallback_size",
+        "no_force_image_page_size",
         "no_lossless",
         "no_config",
     ];
@@ -579,9 +606,9 @@ mod tests {
             "--save-config",
             "config_output.toml",
             "--whatif",
-            "--image-page-fallback-size",
+            "--image-page-size",
             "A10",
-            "--force-image-page-fallback-size",
+            "--force-image-page-size",
             "--margin",
             "10 mm x 15 mm",
             "--dpi",

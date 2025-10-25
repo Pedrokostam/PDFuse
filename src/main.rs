@@ -1,4 +1,6 @@
-use pdfuse_parameters::{ConfigError, ParametersWithPaths};
+use pdfuse_parameters::error::ConfigError;
+use pdfuse_parameters::path::SourcePath;
+use pdfuse_parameters::ParametersWithPaths;
 use pdfuse_utils::*;
 
 rust_i18n::i18n!();

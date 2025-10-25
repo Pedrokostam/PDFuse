@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 
-use super::CustomSize;
+use super::CustomPage;
 use crate::error::UsPaperError;
 use crate::{Length, Size};
 
@@ -61,13 +61,13 @@ impl UsPaper {
 }
 
 impl Size for UsPaper {
-    fn to_custom_size(&self) -> CustomSize {
+    fn to_custom_size(&self) -> CustomPage {
         match self {
-            UsPaper::Letter => CustomSize::from_inches(8.5, 11.0),
-            UsPaper::Ledger => CustomSize::from_inches(17.0, 11.0),
-            UsPaper::Tabloid => CustomSize::from_inches(11.0, 17.0),
-            UsPaper::Legal => CustomSize::from_inches(8.5, 14.0),
-            UsPaper::Executive => CustomSize::from_inches(7.25, 10.5),
+            UsPaper::Letter => CustomPage::from_inches(8.5, 11.0),
+            UsPaper::Ledger => CustomPage::from_inches(17.0, 11.0),
+            UsPaper::Tabloid => CustomPage::from_inches(11.0, 17.0),
+            UsPaper::Legal => CustomPage::from_inches(8.5, 14.0),
+            UsPaper::Executive => CustomPage::from_inches(7.25, 10.5),
         }
     }
 
@@ -79,7 +79,42 @@ impl Size for UsPaper {
         self.to_custom_size().vertical
     }
 
-    fn fit_size(&self, other_size: &CustomSize) -> f64 {
+    fn fit_size(&self, other_size: &CustomPage) -> f64 {
         self.to_custom_size().fit_size(other_size)
+    }
+}
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    fn get_custom(in_x: f64, in_y: f64) -> CustomPage {
+        CustomPage {
+            horizontal: Length::from_inches(in_x),
+            vertical: Length::from_inches(in_y),
+        }
+    }
+    #[test]
+    fn parsing() {
+        let txts = vec!["  lEtTeR ", " lEgAl ", "  TaBlOiD  ", " lEdGeR  ", " eXeCuTiVe "];
+        for t in txts {
+            assert!(UsPaper::try_from_string(t).is_ok());
+            assert!(UsPaper::try_from_string(&t.to_ascii_uppercase()).is_ok());
+            assert!(UsPaper::try_from_string(&t.to_ascii_lowercase()).is_ok());
+        }
+    }
+
+    #[test]
+    fn us_size() {
+        let vals = vec![
+            (UsPaper::Letter, get_custom(8.5, 11.0)),
+            (UsPaper::Ledger, get_custom(17.0, 11.0)),
+            (UsPaper::Tabloid, get_custom(11.0, 17.0)),
+            (UsPaper::Executive, get_custom(7.25, 10.5)),
+            (UsPaper::Legal, get_custom(8.5, 14.0)),
+        ];
+        for (manual, custom) in vals {
+            assert_eq!(manual.to_custom_size(), custom, "{manual} to {custom}");
+        }
     }
 }

@@ -5,9 +5,9 @@ use std::fmt::Display;
 use std::path::Path;
 use walkdir::DirEntry;
 
+use super::SafePath;
+use crate::error::InvalidSourceTypeError;
 use crate::file_finder::{ALL_LIBRE_EXTENSIONS, IMAGE_EXTENSIONS, PDF_EXTENSIONS};
-use crate::invalid_source_type::InvalidSourceType;
-use crate::safe_path::SafePath;
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Eq)]
 pub enum SourcePath {
@@ -39,7 +39,7 @@ impl Ord for SourcePath {
 }
 
 impl TryFrom<&Path> for SourcePath {
-    type Error = InvalidSourceType;
+    type Error = InvalidSourceTypeError;
 
     fn try_from(value: &Path) -> Result<Self, Self::Error> {
         Self::try_from_path(value)
@@ -55,12 +55,12 @@ impl AsRef<Path> for SourcePath {
 }
 
 impl TryFrom<DirEntry> for SourcePath {
-    type Error = InvalidSourceType;
+    type Error = InvalidSourceTypeError;
 
     fn try_from(value: DirEntry) -> Result<Self, Self::Error> {
         match value.path().canonicalize() {
             Ok(c) => c.as_path().try_into(),
-            Err(_) => Err(InvalidSourceType(value.path().into())),
+            Err(_) => Err(InvalidSourceTypeError(value.path().into())),
         }
     }
 }
@@ -74,7 +74,7 @@ impl From<SourcePath> for SafePath {
 }
 
 impl TryFrom<&OsStr> for SourcePath {
-    type Error = InvalidSourceType;
+    type Error = InvalidSourceTypeError;
 
     fn try_from(value: &OsStr) -> Result<Self, Self::Error> {
         SourcePath::try_from_path(Path::new(value))
@@ -91,7 +91,7 @@ impl Display for SourcePath {
 }
 
 impl SourcePath {
-    pub fn try_from_path(path: &Path) -> Result<Self, InvalidSourceType> {
+    pub fn try_from_path(path: &Path) -> Result<Self, InvalidSourceTypeError> {
         let safe_path: SafePath = path.into();
         let ext = safe_path
             .extension()
@@ -107,6 +107,14 @@ impl SourcePath {
         if ALL_LIBRE_EXTENSIONS.binary_search(&ext_str).is_ok() {
             return Ok(SourcePath::LibreDocument(safe_path));
         }
-        Err(InvalidSourceType(safe_path))
+        Err(InvalidSourceTypeError(safe_path))
+    }
+
+    pub fn file_name(&self) -> String {
+        match self {
+            SourcePath::Image(safe_path) => safe_path.file_name(),
+            SourcePath::Pdf(safe_path) => safe_path.file_name(),
+            SourcePath::LibreDocument(safe_path) => safe_path.file_name(),
+        }
     }
 }

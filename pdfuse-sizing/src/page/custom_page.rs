@@ -7,31 +7,31 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::{error::LengthParseError, page::{IsoPaper, PageSize, UsPaper}, Length, Size, TransposableSize, Unit};
+use crate::{error::LengthParseError, page::{IsoPaper, Page, UsPaper}, Length, Size, TransposableSize, Unit};
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 #[serde(try_from = "String")]
 #[serde(into = "String")]
-pub struct CustomSize {
+pub struct CustomPage {
     pub horizontal: Length,
     pub vertical: Length,
 }
 
-impl<T> Div<T> for CustomSize
+impl<T> Div<T> for CustomPage
 where
     T: Copy + Into<f64>,
 {
-    type Output = CustomSize;
+    type Output = CustomPage;
 
     fn div(self, rhs: T) -> Self::Output {
-        CustomSize {
+        CustomPage {
             horizontal: self.horizontal / rhs.into(),
             vertical: self.vertical / rhs.into(),
         }
     }
 }
 
-impl Default for CustomSize {
+impl Default for CustomPage {
     fn default() -> Self {
         Self {
             horizontal: Length::zero(),
@@ -40,7 +40,7 @@ impl Default for CustomSize {
     }
 }
 
-impl TryFrom<&str> for CustomSize {
+impl TryFrom<&str> for CustomPage {
     type Error = LengthParseError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
@@ -48,7 +48,7 @@ impl TryFrom<&str> for CustomSize {
     }
 }
 
-impl TryFrom<String> for CustomSize {
+impl TryFrom<String> for CustomPage {
     type Error = LengthParseError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
@@ -56,27 +56,27 @@ impl TryFrom<String> for CustomSize {
     }
 }
 
-impl From<CustomSize> for String {
-    fn from(value: CustomSize) -> Self {
+impl From<CustomPage> for String {
+    fn from(value: CustomPage) -> Self {
         value.to_string()
     }
 }
 
-impl<T> Mul<T> for CustomSize
+impl<T> Mul<T> for CustomPage
 where
     T: Copy + Into<f64>,
 {
-    type Output = CustomSize;
+    type Output = CustomPage;
 
     fn mul(self, rhs: T) -> Self::Output {
-        CustomSize {
+        CustomPage {
             horizontal: self.horizontal * rhs.into(),
             vertical: self.vertical * rhs.into(),
         }
     }
 }
 
-impl Display for CustomSize {
+impl Display for CustomPage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match f.precision() {
             None => format!("{x} x {y}", x = self.horizontal(), y = self.vertical()),
@@ -91,29 +91,29 @@ impl Display for CustomSize {
     }
 }
 
-impl Add<Self> for CustomSize {
+impl Add<Self> for CustomPage {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        CustomSize {
+        CustomPage {
             horizontal: self.horizontal + rhs.horizontal,
             vertical: self.vertical + rhs.vertical,
         }
     }
 }
 
-impl Neg for CustomSize {
+impl Neg for CustomPage {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        CustomSize {
+        CustomPage {
             horizontal: -self.horizontal,
             vertical: -self.vertical,
         }
     }
 }
 
-impl Sub<Self> for CustomSize {
+impl Sub<Self> for CustomPage {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -121,9 +121,9 @@ impl Sub<Self> for CustomSize {
     }
 }
 
-impl TransposableSize for CustomSize {
+impl TransposableSize for CustomPage {
     fn transposed(&self) -> Self {
-        CustomSize {
+        CustomPage {
             horizontal: self.vertical,
             vertical: self.horizontal,
         }
@@ -134,8 +134,8 @@ impl TransposableSize for CustomSize {
     }
 }
 
-impl Size for CustomSize {
-    fn to_custom_size(&self) -> CustomSize {
+impl Size for CustomPage {
+    fn to_custom_size(&self) -> CustomPage {
         *self
     }
 
@@ -147,66 +147,66 @@ impl Size for CustomSize {
         self.vertical
     }
 
-    fn fit_size(&self, other_size: &CustomSize) -> f64 {
+    fn fit_size(&self, other_size: &CustomPage) -> f64 {
         let x = self.horizontal() / other_size.horizontal();
         let y = self.vertical() / other_size.vertical();
         x.min(y)
     }
 }
 
-impl CustomSize {
+impl CustomPage {
     pub fn zero() -> Self {
-        CustomSize {
+        CustomPage {
             horizontal: Length::zero(),
             vertical: Length::zero(),
         }
     }
     /// Create new `CustomSize` where both dimension are in millimeters.
-    pub fn from_millimeters<T>(horizontal: T, vertical: T) -> CustomSize
+    pub fn from_millimeters<T>(horizontal: T, vertical: T) -> CustomPage
     where
         T: Into<f64>,
     {
-        CustomSize {
+        CustomPage {
             horizontal: Length::from_millimeters(horizontal),
             vertical: Length::from_millimeters(vertical),
         }
     }
     /// Create new `CustomSize` where both dimension are in centimeters.
-    pub fn from_centimeters<T>(horizontal: T, vertical: T) -> CustomSize
+    pub fn from_centimeters<T>(horizontal: T, vertical: T) -> CustomPage
     where
         T: Into<f64>,
     {
-        CustomSize {
+        CustomPage {
             horizontal: Length::from_centimeters(horizontal),
             vertical: Length::from_centimeters(vertical),
         }
     }
     /// Create new `CustomSize` where both dimension are in meters.
-    pub fn from_meters<T>(horizontal: T, vertical: T) -> CustomSize
+    pub fn from_meters<T>(horizontal: T, vertical: T) -> CustomPage
     where
         T: Into<f64>,
     {
-        CustomSize {
+        CustomPage {
             horizontal: Length::from_meters(horizontal),
             vertical: Length::from_meters(vertical),
         }
     }
     /// Create new `CustomSize` where both dimension are in inches.
-    pub fn from_inches<T>(horizontal: T, vertical: T) -> CustomSize
+    pub fn from_inches<T>(horizontal: T, vertical: T) -> CustomPage
     where
         T: Into<f64>,
     {
-        CustomSize {
+        CustomPage {
             horizontal: Length::from_inches(horizontal),
             vertical: Length::from_inches(vertical),
         }
     }
     /// Create new `CustomSize` where both dimension are in points.
-    pub fn from_points<T>(horizontal: T, vertical: T) -> CustomSize
+    pub fn from_points<T>(horizontal: T, vertical: T) -> CustomPage
     where
         T: Into<f64>,
     {
-        CustomSize {
+        CustomPage {
             horizontal: Length::from_points(horizontal),
             vertical: Length::from_points(vertical),
         }
@@ -234,30 +234,30 @@ impl CustomSize {
             Ok(length) => length.parsed_value,
             Err(_) => unit_distance_1,
         };
-        Ok(CustomSize {
+        Ok(CustomPage {
             horizontal: unit_distance_1,
             vertical: unit_distance_2,
         })
     }
 }
 
-impl From<IsoPaper> for CustomSize {
+impl From<IsoPaper> for CustomPage {
     fn from(value: IsoPaper) -> Self {
         value.to_custom_size()
     }
 }
-impl From<UsPaper> for CustomSize {
+impl From<UsPaper> for CustomPage {
     fn from(value: UsPaper) -> Self {
         value.to_custom_size()
     }
 }
 
-impl From<PageSize> for CustomSize {
-    fn from(value: PageSize) -> Self {
+impl From<Page> for CustomPage {
+    fn from(value: Page) -> Self {
         match value {
-            PageSize::Standard(iso_paper) => iso_paper.into(),
-            PageSize::Custom(custom_size) => custom_size,
-            PageSize::American(us_paper) => us_paper.into(),
+            Page::Standard(iso_paper) => iso_paper.into(),
+            Page::Custom(custom_size) => custom_size,
+            Page::American(us_paper) => us_paper.into(),
         }
     }
 }
@@ -272,48 +272,48 @@ pub(crate) mod tests {
         let test_vals = vec![
             (
                 "12.3437m-22.3437m",
-                CustomSize::from_meters(12.343737, 22.343737),
+                CustomPage::from_meters(12.343737, 22.343737),
             ),
             (
                 " 12.3437m x 22.3437m ",
-                CustomSize::from_meters(12.3437, 22.3437),
+                CustomPage::from_meters(12.3437, 22.3437),
             ),
             (
                 " 12.3437m x 22.3437m ",
-                CustomSize::from_meters(12.3437, 22.3437),
+                CustomPage::from_meters(12.3437, 22.3437),
             ),
-            (" 12.3437m ", CustomSize::from_meters(12.3437, 12.3437)),
+            (" 12.3437m ", CustomPage::from_meters(12.3437, 12.3437)),
             (
                 " 12.3437 x 22.3437m ",
-                CustomSize::from_meters(12.3437, 22.3437),
+                CustomPage::from_meters(12.3437, 22.3437),
             ),
             (
                 " 12.3437m x 22.3437 ",
-                CustomSize::from_meters(12.3437, 22.3437),
+                CustomPage::from_meters(12.3437, 22.3437),
             ),
             (
                 " 12.3437  22.3437m ",
-                CustomSize::from_meters(12.3437, 22.3437),
+                CustomPage::from_meters(12.3437, 22.3437),
             ),
             (
                 " 12.3437 mm 22.3437pt ",
-                CustomSize {
+                CustomPage {
                     horizontal: Length::from_millimeters(12.3437),
                     vertical: Length::from_points(22.3437),
                 },
             ),
             (
                 " 12.3437 mm x 22.3437pt ",
-                CustomSize {
+                CustomPage {
                     horizontal: Length::from_millimeters(12.3437),
                     vertical: Length::from_points(22.3437),
                 },
             ),
-            ("12cm", CustomSize::from_centimeters(12, 12)),
+            ("12cm", CustomPage::from_centimeters(12, 12)),
         ];
         for (text, paper) in test_vals {
             let parsed =
-                CustomSize::try_from_string(text).expect(&format!("Failed parsing '{text}'"));
+                CustomPage::try_from_string(text).expect(&format!("Failed parsing '{text}'"));
             assert_eq!(parsed, paper, "{text}");
         }
     }

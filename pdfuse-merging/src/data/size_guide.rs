@@ -1,5 +1,6 @@
-use pdfuse_parameters::{Parameters, SourcePath};
-use pdfuse_sizing::page::CustomSize;
+use pdfuse_parameters::{Parameters};
+use pdfuse_parameters::path::SourcePath;
+use pdfuse_sizing::page::CustomPage;
 use pdfuse_sizing::Size;
 use pdfuse_utils::Indexed;
 
@@ -25,8 +26,8 @@ pub(crate) enum GuideRequirement {
 }
 #[derive(Clone, Debug)]
 pub(crate) struct SizeGuide {
-    map: Vec<CustomSize>,
-    fallback: CustomSize,
+    map: Vec<CustomPage>,
+    fallback: CustomPage,
 }
 impl SizeGuide {
     pub fn need_to_wait_for_pdf_threads(
@@ -83,7 +84,7 @@ impl SizeGuide {
         if !all_data.is_sorted() {
             all_data.sort_unstable();
         }
-        let mut size_map: Vec<CustomSize> = vec![];
+        let mut size_map: Vec<CustomPage> = vec![];
         for ind_res in all_data.iter() {
             match ind_res.value() {
                 Err(_) => continue,
@@ -112,7 +113,7 @@ impl SizeGuide {
         }
     }
 
-    pub fn get_size(&self, index: usize) -> CustomSize {
+    pub fn get_size(&self, index: usize) -> CustomPage {
         if index >= self.map.len() {
             // fail-safe - if we try to get an index that goes further than the map, we take the last value.
             return *self.map.last().unwrap_or(&self.fallback);

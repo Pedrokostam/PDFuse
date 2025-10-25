@@ -1,9 +1,13 @@
 use lopdf::{Document, Object, ObjectId};
+use pdfuse_parameters::{
+    path::{SafePath, SourcePath},
+    Bookmarks, Parameters,
+};
 use pdfuse_utils::{
     error_t, get_registered_busy_indicator, get_registered_progress_iterator,
     get_registered_progress_iterator_parallel,
     log::{debug, error},
-    register_progressbar, Indexed,
+    Indexed,
 };
 use rayon::iter::ParallelIterator;
 use size_guide::SizeGuide;
@@ -12,12 +16,8 @@ use std::{collections::BTreeMap, env, error::Error, fmt::Display, path::Path};
 pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
 pub use loaded_image::LoadedImage;
-use pdfuse_parameters::{
-    Bookmarks, Parameters, SafePath,
-    SourcePath::{self, Image, LibreDocument, Pdf},
-};
 
-use crate::{conditional_slow_down, DocumentLoadError};
+use crate::{conditional_slow_down, error::DocumentLoadError};
 mod imager;
 mod loaded_document;
 mod loaded_image;
@@ -97,9 +97,9 @@ fn split_paths(sources: Vec<Indexed<SourcePath>>) -> SplitPathsResult {
     for isp in sources {
         let index = isp.index();
         match isp.take_out() {
-            Image(spath) => images_to_load.push((index, spath).into()),
-            Pdf(spath) => pdfs_to_load.push((index, spath).into()),
-            LibreDocument(spath) => documents_to_pdf.push((index, spath).into()),
+            SourcePath::Image(spath) => images_to_load.push((index, spath).into()),
+            SourcePath::Pdf(spath) => pdfs_to_load.push((index, spath).into()),
+            SourcePath::LibreDocument(spath) => documents_to_pdf.push((index, spath).into()),
         }
     }
     SplitPathsResult {

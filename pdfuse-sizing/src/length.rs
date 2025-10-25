@@ -17,11 +17,13 @@ use super::{parsing::ParseResult, unit::Unit};
 pub struct Length {
     pub(crate) base_value: f64,
 }
+
 impl From<Length> for String {
     fn from(value: Length) -> Self {
         value.as_unit_str(Length::BASE_UNIT)
     }
 }
+
 impl TryFrom<&str> for Length {
     type Error = LengthParseError;
 
@@ -29,6 +31,7 @@ impl TryFrom<&str> for Length {
         Self::try_from_string(value)
     }
 }
+
 impl TryFrom<String> for Length {
     type Error = LengthParseError;
 
@@ -36,6 +39,7 @@ impl TryFrom<String> for Length {
         Self::try_from_string(&value)
     }
 }
+
 impl Length {
     pub const BASE_UNIT: Unit = Unit::Millimeter;
     pub fn zero() -> Self {
@@ -83,6 +87,7 @@ impl Length {
         Self::from_unit(points, Unit::Point)
     }
 }
+
 impl Length {
     pub(crate) fn from_string_with_default_result(
         text: &str,
@@ -138,6 +143,7 @@ impl Length {
         Self::from_string_with_default(text, None).map(|pr| pr.parsed_value)
     }
 }
+
 impl Add<Self> for Length {
     type Output = Self;
 
@@ -147,11 +153,13 @@ impl Add<Self> for Length {
         }
     }
 }
+
 impl AddAssign<Self> for Length {
     fn add_assign(&mut self, rhs: Self) {
         self.base_value += rhs.base_value;
     }
 }
+
 impl Neg for Length {
     type Output = Self;
 
@@ -171,11 +179,13 @@ impl Sub<Self> for Length {
         }
     }
 }
+
 impl SubAssign<Self> for Length {
     fn sub_assign(&mut self, rhs: Self) {
         self.base_value -= rhs.base_value;
     }
 }
+
 impl<T> Div<T> for Length
 where
     T: Copy + Into<f64>,
@@ -188,6 +198,7 @@ where
         }
     }
 }
+
 impl Div<Self> for Length {
     type Output = f64;
 
@@ -195,6 +206,7 @@ impl Div<Self> for Length {
         self.base_value / rhs.base_value
     }
 }
+
 impl<T> Mul<T> for Length
 where
     T: Copy + Into<f64>,
@@ -207,6 +219,7 @@ where
         }
     }
 }
+
 impl Display for Length {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -217,6 +230,7 @@ impl Display for Length {
         )
     }
 }
+
 impl From<Length> for printpdf::units::Mm {
     fn from(val: Length) -> Self {
         printpdf::units::Mm(val.mm() as f32)
@@ -233,6 +247,36 @@ impl From<Length> for printpdf::units::Pt {
 mod tests {
     #![allow(clippy::expect_fun_call)]
     use super::*;
+    #[test]
+    fn meter_comparisons () {
+        let equivs = vec![
+            (Length::from_inches(1.0), Length::from_centimeters(2.54)),
+            (Length::from_inches(10.0), Length::from_centimeters(25.4)),
+            (Length::from_meters(1.0), Length::from_centimeters(100.0)),
+            (Length::from_points(72.0), Length::from_inches(1.0)),
+            (Length::from_points(720.0), Length::from_inches(10.0)),
+            (Length::from_points(72.0), Length::from_centimeters(2.54)),
+            (Length::from_meters(10.0), Length::from_points(28346.5)),
+        ];
+        for (a, b) in equivs {
+            assert_eq!(a.m(), b.m(), "{a} equals {b}");
+        }
+    }
+    #[test]
+    fn conversions() {
+        let equivs = vec![
+            (Length::from_inches(1.0), Length::from_centimeters(2.54)),
+            (Length::from_inches(10.0), Length::from_centimeters(25.4)),
+            (Length::from_meters(1.0), Length::from_centimeters(100.0)),
+            (Length::from_points(72.0), Length::from_inches(1.0)),
+            (Length::from_points(720.0), Length::from_inches(10.0)),
+            (Length::from_points(72.0), Length::from_centimeters(2.54)),
+            (Length::from_meters(10.0), Length::from_points(28346.5)),
+        ];
+        for (a, b) in equivs {
+            assert_eq!(a, b, "{a} equals {b}");
+        }
+    }
     #[test]
     fn parsing_length() {
         let texts = vec![

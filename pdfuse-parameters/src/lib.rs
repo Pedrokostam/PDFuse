@@ -1,21 +1,14 @@
-mod errors;
+pub mod error;
 mod file_finder;
-mod invalid_source_type;
-mod source_path;
+pub mod path;
 
-mod parameters;
-mod safe_path;
-mod safe_destination;
-mod log_level;
 mod bookmarks;
-pub use parameters::{Parameters, ParametersWithPaths};
-pub use source_path::SourcePath;
-pub use safe_path::{SafePath,create_temp_dir};
-pub use safe_destination::SafeDestination;
-pub use errors::*;
+mod log_level;
+mod parameters;
+pub use bookmarks::Bookmarks;
 pub use file_finder::get_files;
 pub use log_level::LogLevel;
-pub use bookmarks::Bookmarks;
+pub use parameters::{Parameters, ParametersWithPaths};
 
 rust_i18n::i18n!();
 #[cfg(test)]

@@ -1,5 +1,9 @@
-use crate::{Bookmarks, SafePath, SourcePath};
-use pdfuse_sizing::page::{CustomSize, PageSize};
+use crate::{
+    path::{SafePath, SourcePath},
+    Bookmarks,
+};
+
+use pdfuse_sizing::page::{CustomPage, Page};
 use pdfuse_utils::Indexed;
 
 /// Parameters used during conversion, creation, and merging of PDFs.
@@ -8,11 +12,11 @@ pub struct Parameters {
     pub confirm_exit: bool,
     pub what_if: bool,
     pub recursion_limit: usize,
-    pub image_page_fallback_size: PageSize,
+    pub image_page_fallback_size: Page,
     pub image_dpi: u16,
     pub image_quality: u8,
     pub image_lossless_compression: bool,
-    pub margin: CustomSize,
+    pub margin: CustomPage,
     pub force_image_page_fallback_size: bool,
     pub alphabetic_file_sorting: bool,
     pub bookmarks: Bookmarks,

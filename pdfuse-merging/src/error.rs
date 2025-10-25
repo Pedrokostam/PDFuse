@@ -1,6 +1,6 @@
 use std::{error::Error, fmt::Display, process::ExitStatus};
 
-use pdfuse_parameters::SafePath;
+use pdfuse_parameters::path::SafePath;
 use pdfuse_utils::write_t;
 
 pub enum LibreConversionError {

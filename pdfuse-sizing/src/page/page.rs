@@ -1,6 +1,6 @@
-use crate::error::{PageSizeError,IsoPaperError};
-use crate::page::{CustomSize,IsoPaper,UsPaper};
-use crate::{Length, Size, TransposableSize };
+use crate::error::{IsoPaperError, PageSizeError};
+use crate::page::{CustomPage, IsoPaper, UsPaper};
+use crate::{Length, Size, TransposableSize};
 use serde::{Deserialize, Serialize};
 use std::convert::From;
 use std::fmt::Display;
@@ -8,46 +8,46 @@ use std::fmt::Display;
 #[derive(Debug, PartialEq, Clone, Copy, Deserialize, Serialize)]
 #[serde(try_from = "String")]
 #[serde(into = "String")]
-pub enum PageSize {
+pub enum Page {
     Standard(IsoPaper),
     American(UsPaper),
-    Custom(CustomSize),
+    Custom(CustomPage),
 }
-impl TryFrom<&str> for PageSize {
+impl TryFrom<&str> for Page {
     type Error = PageSizeError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         Self::try_from_string(value)
     }
 }
-impl TryFrom<String> for PageSize {
+impl TryFrom<String> for Page {
     type Error = PageSizeError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::try_from_string(&value)
     }
 }
-impl From<PageSize> for String {
-    fn from(value: PageSize) -> Self {
+impl From<Page> for String {
+    fn from(value: Page) -> Self {
         value.to_string()
     }
 }
-impl From<IsoPaper> for PageSize {
+impl From<IsoPaper> for Page {
     fn from(value: IsoPaper) -> Self {
-        PageSize::Standard(value)
+        Page::Standard(value)
     }
 }
-impl From<CustomSize> for PageSize {
-    fn from(value: CustomSize) -> Self {
-        PageSize::Custom(value)
+impl From<CustomPage> for Page {
+    fn from(value: CustomPage) -> Self {
+        Page::Custom(value)
     }
 }
-impl From<UsPaper> for PageSize {
+impl From<UsPaper> for Page {
     fn from(value: UsPaper) -> Self {
-        PageSize::American(value)
+        Page::American(value)
     }
 }
-impl PageSize {
+impl Page {
     pub fn try_from_string(text: &str) -> Result<Self, PageSizeError> {
         let trimmed = text.trim();
         match IsoPaper::try_from_string(trimmed) {
@@ -62,7 +62,7 @@ impl PageSize {
                         Ok(u) => Ok(u.into()),
                         Err(ue) => Err(ue.into()),
                     },
-                    true => match CustomSize::try_from_string(trimmed) {
+                    true => match CustomPage::try_from_string(trimmed) {
                         Ok(c) => Ok(c.into()),
                         Err(ce) => Err(ce.into()),
                     },
@@ -71,65 +71,65 @@ impl PageSize {
         }
     }
 }
-impl Display for PageSize {
+impl Display for Page {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PageSize::Standard(iso_paper) => iso_paper.fmt(f),
-            PageSize::Custom(custom_size) => custom_size.fmt(f),
-            PageSize::American(us_paper) => us_paper.fmt(f),
+            Page::Standard(iso_paper) => iso_paper.fmt(f),
+            Page::Custom(custom_size) => custom_size.fmt(f),
+            Page::American(us_paper) => us_paper.fmt(f),
         }
     }
 }
-impl TransposableSize for PageSize {
+impl TransposableSize for Page {
     fn transposed(&self) -> Self {
         match self {
-            PageSize::Standard(iso_paper) => PageSize::Standard(iso_paper.transposed()),
-            PageSize::Custom(custom_size) => PageSize::Custom(custom_size.transposed()),
-            PageSize::American(us_paper) => PageSize::Custom(us_paper.to_custom_size()),
+            Page::Standard(iso_paper) => Page::Standard(iso_paper.transposed()),
+            Page::Custom(custom_size) => Page::Custom(custom_size.transposed()),
+            Page::American(us_paper) => Page::Custom(us_paper.to_custom_size()),
         }
     }
 
     fn transpose(&mut self) {
         match self {
-            PageSize::Standard(iso_paper) => iso_paper.transpose(),
-            PageSize::Custom(custom_size) => custom_size.transpose(),
-            PageSize::American(us_paper) => us_paper.to_custom_size().transpose(),
+            Page::Standard(iso_paper) => iso_paper.transpose(),
+            Page::Custom(custom_size) => custom_size.transpose(),
+            Page::American(us_paper) => us_paper.to_custom_size().transpose(),
         }
     }
 }
-impl Size for PageSize {
-    fn to_custom_size(&self) -> CustomSize {
+impl Size for Page {
+    fn to_custom_size(&self) -> CustomPage {
         match self {
-            PageSize::Standard(iso_paper) => iso_paper.to_custom_size(),
-            PageSize::Custom(custom_size) => custom_size.to_custom_size(),
-            PageSize::American(us_paper) => us_paper.to_custom_size(),
+            Page::Standard(iso_paper) => iso_paper.to_custom_size(),
+            Page::Custom(custom_size) => custom_size.to_custom_size(),
+            Page::American(us_paper) => us_paper.to_custom_size(),
         }
     }
 
     fn horizontal(&self) -> Length {
         match self {
-            PageSize::Standard(iso_paper) => iso_paper.horizontal(),
-            PageSize::Custom(custom_size) => custom_size.horizontal(),
-            PageSize::American(us_paper) => us_paper.horizontal(),
+            Page::Standard(iso_paper) => iso_paper.horizontal(),
+            Page::Custom(custom_size) => custom_size.horizontal(),
+            Page::American(us_paper) => us_paper.horizontal(),
         }
     }
 
     fn vertical(&self) -> Length {
         match self {
-            PageSize::Standard(iso_paper) => iso_paper.vertical(),
-            PageSize::Custom(custom_size) => custom_size.vertical(),
-            PageSize::American(us_paper) => us_paper.vertical(),
+            Page::Standard(iso_paper) => iso_paper.vertical(),
+            Page::Custom(custom_size) => custom_size.vertical(),
+            Page::American(us_paper) => us_paper.vertical(),
         }
     }
 
-    fn fit_size(&self, other_size: &CustomSize) -> f64 {
+    fn fit_size(&self, other_size: &CustomPage) -> f64 {
         self.to_custom_size().fit_size(other_size)
     }
 }
-impl Default for PageSize {
+impl Default for Page {
     /// Standard ISO paper size - A4.
     fn default() -> Self {
-        PageSize::Standard(IsoPaper::default())
+        Page::Standard(IsoPaper::default())
     }
 }
 
@@ -140,38 +140,38 @@ mod tests {
     use super::*;
     #[test]
     fn parsing_custom() {
-        let test_vals: Vec<(&'static str, PageSize)> = vec![
+        let test_vals: Vec<(&'static str, Page)> = vec![
             (
                 "12.3437m-22.3437m",
-                CustomSize::from_meters(12.343737, 22.343737).into(),
+                CustomPage::from_meters(12.3437, 22.3437).into(),
             ),
             (
                 " 12.3437m x 22.3437m ",
-                CustomSize::from_meters(12.3437, 22.3437).into(),
+                CustomPage::from_meters(12.3437, 22.3437).into(),
             ),
             (
                 " 12.3437m x 22.3437m ",
-                CustomSize::from_meters(12.3437, 22.3437).into(),
+                CustomPage::from_meters(12.3437, 22.3437).into(),
             ),
             (
                 " 12.3437m ",
-                CustomSize::from_meters(12.3437, 12.3437).into(),
+                CustomPage::from_meters(12.3437, 12.3437).into(),
             ),
             (
                 " 12.3437 x 22.3437m ",
-                CustomSize::from_meters(12.3437, 22.3437).into(),
+                CustomPage::from_meters(12.3437, 22.3437).into(),
             ),
             (
                 " 12.3437m x 22.3437 ",
-                CustomSize::from_meters(12.3437, 22.3437).into(),
+                CustomPage::from_meters(12.3437, 22.3437).into(),
             ),
             (
                 " 12.3437  22.3437m ",
-                CustomSize::from_meters(12.3437, 22.3437).into(),
+                CustomPage::from_meters(12.3437, 22.3437).into(),
             ),
             (
                 " 12.3437 mm 22.3437pt ",
-                CustomSize {
+                CustomPage {
                     horizontal: Length::from_millimeters(12.3437),
                     vertical: Length::from_points(22.3437),
                 }
@@ -179,19 +179,18 @@ mod tests {
             ),
             (
                 " 12.3437 mm x 22.3437pt ",
-                CustomSize {
+                CustomPage {
                     horizontal: Length::from_millimeters(12.3437),
                     vertical: Length::from_points(22.3437),
                 }
                 .into(),
             ),
-            ("12cm", CustomSize::from_centimeters(12, 12).into()),
+            ("12cm", CustomPage::from_centimeters(12, 12).into()),
         ];
         for (text, paper) in test_vals {
             let parsed =
-                PageSize::try_from_string(text).expect(&format!("Failed parsing '{text}'"));
+                Page::try_from_string(text).expect(&format!("Failed parsing '{text}'"));
             assert_eq!(parsed, paper, "{text}");
         }
     }
 }
-

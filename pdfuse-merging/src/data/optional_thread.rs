@@ -1,12 +1,12 @@
 use std::thread::JoinHandle;
 
-use indicatif::{MultiProgress, ProgressBar, ProgressIterator};
-use pdfuse_parameters::{create_temp_dir, Parameters, SafePath};
-use pdfuse_utils::{
-    get_registered_busy_indicator, get_registered_progress_iterator, get_registered_progress_iterator_parallel, log::debug, Indexed
+use pdfuse_parameters::{
+    path::{create_temp_dir, SafePath},
+    Parameters,
 };
+use pdfuse_utils::{get_registered_progress_iterator, log::debug, Indexed};
 
-use crate::DocumentLoadError;
+use crate::error::DocumentLoadError;
 
 use super::{loaded_document, preload_pdf, Data, PdfResult};
 

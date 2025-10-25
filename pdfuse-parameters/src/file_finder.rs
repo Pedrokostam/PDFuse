@@ -5,8 +5,8 @@ use once_cell::sync::Lazy;
 use pdfuse_utils::{error_t, get_registered_busy_indicator};
 use pdfuse_utils::{info_t, Indexed};
 use walkdir::{DirEntry, WalkDir};
-use crate::source_path::SourcePath;
-use crate::SafePath;
+
+use crate::path::{SafePath, SourcePath};
 
 pub(crate) const IMAGE_EXTENSIONS: &[&str] = &[
     "bmp", "jpeg", "jp2", "jpg", "jpx", "jxr", "pam", "pbm", "pnm", "png", "psd", "tiff",
@@ -32,7 +32,6 @@ pub(crate) const TEXT_EXTENSIONS: &[&str] = &[
 ];
 
 pub(crate) const PDF_EXTENSIONS: &[&str] = &["pdf"];
-
 
 pub(crate) static ALL_SIMPLE_SUPPORTED_EXTENSIONS: Lazy<Vec<&str>> =
     Lazy::new(|| [IMAGE_EXTENSIONS, PDF_EXTENSIONS].concat());
@@ -66,7 +65,6 @@ fn is_valid_source(entry: &DirEntry, extensions: &[&str]) -> bool {
         }
     }
 }
-
 
 // #[derive(Clone, PartialEq, Debug, Eq, PartialOrd, Ord)]
 // pub struct IndexedSourcePath {

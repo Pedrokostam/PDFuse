@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use image::{DynamicImage, ImageReader};
-use pdfuse_parameters::SafePath;
+use pdfuse_parameters::path::SafePath;
 
 use crate::{conditional_slow_down, error::ImageLoadError};
 

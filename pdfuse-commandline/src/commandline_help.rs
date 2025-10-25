@@ -4,7 +4,9 @@ use color_print::cstr;
 pub const ABOUT: &str =
     "Command-line tool to concatenate images, documents and PDFs into a single PDF file.";
 
-pub const AFTER_HELP: &str = cstr!("Specify  <s><i>--help</></> to get detailed help and information about specifying sizes and reusing configurations.");
+pub const AFTER_HELP: &str = cstr!(
+    "Specify  <s><i>--help</></> to get detailed help and information about specifying sizes and reusing configurations."
+);
 pub const AFTER_LONG_HELP: &str = cstr!(
     r#"<bright-cyan><s><i>Reusing configuration</></></>
 
@@ -24,7 +26,7 @@ Final config: log = debug, recursion_limit = 5, lossless = true
 
 Use <s><i>--save-config</></> [filepath] to save current config for reuse.
 
-Ignored in config files:
+The following arguments are always ignored in config files:
  • <s><i>--save-config</></>
  • <s><i>--config</></>
  • <s><i>--whatif</></> (good for creating new configs!)
@@ -44,7 +46,10 @@ Sizes can be:
    • Examples: 5mm x 7mm, 1in, 5mm-7mm, 5mm 7mm
 
 2) ISO sheets (A, B, C series, ranks 0–13):
-   • Examples: A4, B5, C11"#
+   • Examples: A4, B5, C11
+   • Those sizes are vertical by default. To make them horizontal prepend them with a caret '^' (e.g. ^A4).
+
+3) Common American paper sizes: Letter, Ledger, Legal, Executive"#
 );
 
 pub const ALPHABETIC_FILE_SORTING_HELP: &str = "Sort input paths alphabetically.";
@@ -54,9 +59,11 @@ By default, files are processed in the order given.
 Enabling this option will sort all found files by path after collection.
 Useful when using drag & drop, as input order may be unpredictable."#;
 
-pub const BOOKMARKS_HELP: &str = "Add bookmarks to output PDF, which may contain the filename and index of added items.";
+pub const BOOKMARKS_HELP: &str =
+    "Add bookmarks to output PDF, containing the filename and index of added items.";
 
 pub const CONFIG_HELP: &str = "Load a configuration file with preset options.";
+pub const NO_CONFIG_HELP: &str = "Prevents loading any config, even implicit ones.";
 
 pub const CONFIRM_EXIT_HELP: &str = "Wait for user input before closing the application.";
 
@@ -85,15 +92,18 @@ See the <bright-cyan><s><i>Sizes</></></> section for supported formats."#
 
 pub const LANGUAGE_HELP: &str = "Specify a language file identifier.";
 
-pub const LIBREOFFICE_PATH_HELP: &str = "Paths to LibreOffice executables used for converting documents.";
+pub const LIBREOFFICE_PATH_HELP: &str =
+    "Paths to LibreOffice executables used for converting documents.";
 pub const LIBREOFFICE_PATH_LONG_HELP: &str = r#"Paths to LibreOffice executables used for converting documents.
 
 If not found, LibreOffice-based conversions will be disabled."#;
 
 pub const LOG_HELP: &str = "Controls which messages are logged into console.";
-pub const LOG_LONG_HELP: &str = cstr!(r#"Controls which messages are logged into console.
+pub const LOG_LONG_HELP: &str = cstr!(
+    r#"Controls which messages are logged into console.
 
-If you just want to disable logging completely, you can also use <s><i>--quiet</></> (<s><i>-q</></>)"#);
+If you just want to disable logging completely, you can also use <s><i>--quiet</></> (<s><i>-q</></>)"#
+);
 
 pub const LOSSLESS_HELP: &str = "Use only lossless compression for images.";
 pub const LOSSLESS_LONG_HELP: &str = cstr!(
@@ -117,9 +127,11 @@ pub const OUTPUT_FILE_LONG_HELP: &str = r#"Path to the final output file.
 The file will overwrite any existing file at the target path."#;
 
 pub const QUALITY_HELP: &str = "JPEG compression quality (1-100).";
-pub const QUALITY_LONG_HELP: &str = r#"JPEG compression quality (1-100).
+pub const QUALITY_LONG_HELP: &str = cstr!(
+    r#"JPEG compression quality (1-100).
 
-Ignored when <s><i>--lossless</></> is applied."#;
+Ignored when <s><i>--lossless</></> is applied."#
+);
 
 pub const RECURSION_LIMIT_HELP: &str = "Recursion depth limit for directories.";
 pub const RECURSION_LIMIT_LONG_HELP: &str = r#"Recursion depth limit for directories.

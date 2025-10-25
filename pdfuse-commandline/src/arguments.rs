@@ -1,10 +1,12 @@
 use std::fs;
 
 use pdfuse_parameters::{
-    Bookmarks, ConfigError, LogLevel, Parameters, ParametersWithPaths, SafeDestination, SafePath,
+    Bookmarks, LogLevel, Parameters, ParametersWithPaths,
+    error::ConfigError,
     get_files,
+    path::{SafeDestination, SafePath},
 };
-use pdfuse_sizing::page::{CustomSize, IsoPaper, PageSize};
+use pdfuse_sizing::page::{CustomPage, IsoPaper, Page};
 use pdfuse_utils::debug_t;
 use serde::{Deserialize, Serialize};
 
@@ -22,13 +24,13 @@ pub struct Args {
     #[cfg_attr(not(test), serde(skip))]
     pub config: Option<SafePath>,
     pub recursion_limit: usize,
-    pub image_page_fallback_size: PageSize,
+    pub image_page_size: Page,
     pub dpi: u16,
     pub quality: u8,
     pub lossless: bool,
     pub log: LogLevel,
-    pub margin: CustomSize,
-    pub force_image_page_fallback_size: bool,
+    pub margin: CustomPage,
+    pub force_image_page_size: bool,
     pub alphabetic_file_sorting: bool,
     pub bookmarks: Bookmarks,
     pub libreoffice_path: Vec<SafePath>,
@@ -66,12 +68,12 @@ impl Default for Args {
             language: None,
             config: None,
             recursion_limit: 4,
-            image_page_fallback_size: IsoPaper::a(4).into(),
+            image_page_size: IsoPaper::a(4).into(),
             dpi: 300,
             quality: 95,
             lossless: false,
-            margin: CustomSize::zero(),
-            force_image_page_fallback_size: false,
+            margin: CustomPage::zero(),
+            force_image_page_size: false,
             alphabetic_file_sorting: false,
             bookmarks: Default::default(),
             libreoffice_path: get_default_libre(),
@@ -134,12 +136,12 @@ impl Args {
             confirm_exit: self.confirm_exit,
             what_if: self.what_if,
             recursion_limit: self.recursion_limit,
-            image_page_fallback_size: self.image_page_fallback_size,
+            image_page_fallback_size: self.image_page_size,
             image_dpi: self.dpi,
             image_quality: self.quality,
             image_lossless_compression: self.lossless,
             margin: self.margin,
-            force_image_page_fallback_size: self.force_image_page_fallback_size,
+            force_image_page_fallback_size: self.force_image_page_size,
             alphabetic_file_sorting: self.alphabetic_file_sorting,
             bookmarks: self.bookmarks,
             libreoffice_path,

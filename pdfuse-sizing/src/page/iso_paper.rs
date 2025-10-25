@@ -4,7 +4,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use super::CustomSize;
+use super::CustomPage;
 use crate::error::IsoPaperError;
 use crate::{Length, Size, TransposableSize};
 
@@ -138,10 +138,11 @@ impl IsoPaper {
 
     pub fn try_from_string(text: &str) -> Result<Self, IsoPaperError> {
         static PAPER_SIZE_REGEX: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"(?i)((?<Transposed>\^\s*)?(?<Paper>[A-Z])\s*(?<Size>-?\d+))").unwrap()
+            Regex::new(r"^\s*((?<Transposed>\^\s*)?(?<Paper>[A-Za-z])\s*(?<Size>[- ]?\d+))\s*$")
+                .unwrap()
         });
         let captures = PAPER_SIZE_REGEX
-            .captures(text)
+            .captures(text.trim())
             .ok_or(IsoPaperError::NotIsoPage)?;
         let size_str = captures
             .name("Size")
@@ -201,14 +202,14 @@ impl Size for IsoPaper {
         }
     }
 
-    fn to_custom_size(&self) -> CustomSize {
-        CustomSize {
+    fn to_custom_size(&self) -> CustomPage {
+        CustomPage {
             horizontal: self.horizontal(),
             vertical: self.vertical(),
         }
     }
 
-    fn fit_size(&self, other_size: &CustomSize) -> f64 {
+    fn fit_size(&self, other_size: &CustomPage) -> f64 {
         self.to_custom_size().fit_size(other_size)
     }
 }
@@ -223,8 +224,8 @@ impl Default for IsoPaper {
 mod tests {
     #![allow(clippy::expect_fun_call)]
     use super::*;
-    fn get_custom(mm_x: i64, mm_y: i64) -> CustomSize {
-        CustomSize {
+    fn get_custom(mm_x: i64, mm_y: i64) -> CustomPage {
+        CustomPage {
             horizontal: Length::from_millimeters(mm_x as f64),
             vertical: Length::from_millimeters(mm_y as f64),
         }
