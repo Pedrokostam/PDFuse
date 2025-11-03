@@ -27,20 +27,18 @@ where
         }
     }
 }
-impl<T> PartialEq for Indexed<T>{
+impl<T> PartialEq for Indexed<T> {
     fn eq(&self, other: &Self) -> bool {
         self.index == other.index
     }
 }
-impl<T> Eq for Indexed<T>{
-  
-}
-impl<T> Ord for Indexed<T>{
+impl<T> Eq for Indexed<T> {}
+impl<T> Ord for Indexed<T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-       self.index.cmp(&other.index)
+        self.index.cmp(&other.index)
     }
 }
-impl<T> PartialOrd for Indexed<T>{
+impl<T> PartialOrd for Indexed<T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
@@ -64,7 +62,7 @@ impl<T> Indexed<T> {
     }
     /// Deconstructs the object into 2 parts: index and value
     pub fn deconstruct(self) -> (usize, T) {
-        (self.index,self.value)
+        (self.index, self.value)
     }
     pub fn map_option<U, F>(self, f: F) -> Option<Indexed<U>>
     where
@@ -72,7 +70,7 @@ impl<T> Indexed<T> {
     {
         let index = self.index;
         let mapped = f(self.take_out());
-        mapped.map(|value| Indexed{index,value})
+        mapped.map(|value| Indexed { index, value })
     }
     pub fn map_with_index<U, F>(self, f: F) -> Indexed<U>
     where
@@ -83,12 +81,20 @@ impl<T> Indexed<T> {
             value: f(self.take_out()),
         }
     }
+    pub fn enumerate_with_index<I>(iter: I) -> impl Iterator<Item = Indexed<T>>
+    where
+        I: IntoIterator<Item = T>,
+    {
+        iter.into_iter().enumerate().map(|pair| pair.into())
+    }
 }
+
 impl<T> From<Indexed<T>> for (usize, T) {
     fn from(indexed: Indexed<T>) -> Self {
         indexed.deconstruct()
     }
 }
+
 impl<T> From<(usize, T)> for Indexed<T> {
     fn from(value: (usize, T)) -> Self {
         Self {
@@ -97,6 +103,19 @@ impl<T> From<(usize, T)> for Indexed<T> {
         }
     }
 }
+
+impl<T> From<(usize, &T)> for Indexed<T>
+where
+    T: Clone,
+{
+    fn from(value: (usize, &T)) -> Self {
+        Self {
+            index: value.0,
+            value: value.1.clone(),
+        }
+    }
+}
+
 impl<T> Deref for Indexed<T> {
     type Target = T;
 
@@ -104,6 +123,7 @@ impl<T> Deref for Indexed<T> {
         self.value()
     }
 }
+
 impl<T> DerefMut for Indexed<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.value_mut()

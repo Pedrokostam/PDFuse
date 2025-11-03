@@ -71,7 +71,7 @@ impl Imager {
             secure: true,
             image_optimization: Some(ImageOptimizationOptions {
                 quality: Some(self.quality as f32 / 100.0),
-                max_image_size: Some("2137gb".to_string()), // "arbitrarily" large size -> we resize the image by ourselves
+                max_image_size: Some("2006gb".to_string()), // arbitrarily large size -> we resize the image by ourselves
                 format: match self.lossless {
                     true => Some(ImageCompression::Flate),
                     false => Some(ImageCompression::Jpeg),
@@ -83,7 +83,7 @@ impl Imager {
         Regarding SaveOptions (for printpdf 0.8.2):
         - format
             Jpeg|Jpeg2000 -> DCTDecode
-            Auto (color) -> DCTDeoced
+            Auto (color) -> DCTDecode
             Auto (gray) -> FlateDecode
             AllElse -> FlateDecode
 

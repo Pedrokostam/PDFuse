@@ -4,6 +4,7 @@ use pdfuse_parameters::{
     Bookmarks, Parameters,
 };
 use pdfuse_utils::{
+    collections::{assert_sorted, ensure_sorted},
     error_t, get_registered_busy_indicator, get_registered_progress_iterator,
     get_registered_progress_iterator_parallel,
     log::{debug, error},
@@ -173,10 +174,12 @@ fn wait_for_libre(
 fn sequential_documentize(
     parameters: &Parameters,
     guide: &SizeGuide,
-    loaded_all: Vec<IndexedPdfResult<Data>>,
+    mut loaded_all: Vec<IndexedPdfResult<Data>>,
     message: &str,
 ) -> Vec<Indexed<Result<LoadedDocument, DocumentLoadError>>> {
-    debug!("parallel_documentize");
+    debug!("sequential_documentize");
+    ensure_sorted(&mut loaded_all);
+    assert!(loaded_all.is_sorted_by(|x, z| x.index() < z.index()));
     let iterator =
         get_registered_progress_iterator(loaded_all.into_iter(), message.to_owned() + " _SEQ");
     let mut imager: Option<Imager> = None;
@@ -465,6 +468,9 @@ fn preload_pdf(path: SafePath) -> PdfResult<Data> {
 // }
 
 // pub fn merge_documents<T>(documents: T, output_path: &Path)
+
+
+
 pub fn merge_documents<T>(documents: T, output_path: &Path, bookmark: Bookmarks)
 where
     T: IntoIterator<Item = IndexedPdfResult<LoadedDocument>> + ExactSizeIterator,
@@ -480,7 +486,15 @@ where
     let mut errors: Vec<usize> = vec![];
     let iterator = documents.into_iter();
     let mut first_page_of_doc = true;
+    let mut last_index: Option<usize> = None;
     for result in iterator {
+        if let Some(li) = last_index {
+            assert!(
+                li < result.index(),
+                "Indices are out-of-order in merge_documents!"
+            );
+        }
+        last_index = Some(result.index());
         if result.value().is_err() {
             errors.push(result.index());
             continue;

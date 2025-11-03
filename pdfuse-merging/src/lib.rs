@@ -5,7 +5,8 @@
 //     }
 // }
 // #![feature(inherent_associated_types)]
-mod data;
+pub mod data;
+// mod documenter;
 mod error;
 pub use data::load;
 rust_i18n::i18n!();

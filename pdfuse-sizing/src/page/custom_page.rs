@@ -7,7 +7,11 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::{error::LengthParseError, page::{IsoPaper, Page, UsPaper}, Length, Size, TransposableSize, Unit};
+use crate::{
+    error::LengthParseError,
+    page::{IsoPaper, Page, UsPaper},
+    Length, Size, TransposableSize, Unit,
+};
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 #[serde(try_from = "String")]
@@ -211,6 +215,13 @@ impl CustomPage {
             vertical: Length::from_points(vertical),
         }
     }
+    pub fn as_unit_string(&self, unit: Unit) -> String {
+        format!(
+            "{h} x {v}",
+            h = self.horizontal.as_unit_str(unit),
+            v = self.vertical.as_unit_str(unit)
+        )
+    }
     pub fn try_from_string(text: &str) -> Result<Self, LengthParseError> {
         static LAST_UNIT_REGEX: Lazy<Regex> =
             Lazy::new(|| Regex::new(r"(?i)([A-Z]+)[\s;,]*$").unwrap());
@@ -220,7 +231,7 @@ impl CustomPage {
             .map(|c| c.as_str());
         let last_unit = match last_unit_str {
             None => None,
-            Some(x) => Some(Unit::from_string(x)?),
+            Some(x) => Some(Unit::try_from_string(x)?),
         };
 
         let unit_ditance_1_res_opt = Length::from_string_with_default_result(text, last_unit);

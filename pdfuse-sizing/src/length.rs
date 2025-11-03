@@ -109,11 +109,11 @@ impl Length {
         let unit_capt = captures.name("Unit").map(|c| c.as_str());
         let (parsed_value, unit) = match (unit_capt, default_unit, value) {
             (Some(unit_str), Some(default_unit_m), _) => {
-                let unit = Unit::from_string(unit_str).unwrap_or(default_unit_m);
+                let unit = Unit::try_from_string(unit_str).unwrap_or(default_unit_m);
                 (Length::from_unit(value, unit), unit)
             }
             (Some(unit_str), None, _) => {
-                let unit = Unit::from_string(unit_str)?;
+                let unit = Unit::try_from_string(unit_str)?;
                 (Length::from_unit(value, unit), unit)
             }
             (None, Some(default_unit_m), _) => {

@@ -2,6 +2,7 @@ mod indexed;
 mod localization;
 mod logger;
 mod progress;
+pub mod collections;
 
 pub use indexed::Indexed;
 pub use log;

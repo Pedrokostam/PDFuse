@@ -1,4 +1,4 @@
-use lopdf::Document;
+use lopdf::{Document, ObjectId};
 use pdfuse_parameters::path::SafePath;
 use pdfuse_sizing::page::CustomPage;
 use pdfuse_sizing::Length;
@@ -35,6 +35,17 @@ impl Display for LoadedDocument {
         )
     }
 }
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum PageSizeSearchResult {
+    NotFound,
+    Size(CustomPage),
+    ParentPage(ObjectId),
+}
+impl PageSizeSearchResult {
+    pub fn is_parent(&self) -> bool {
+        matches!(self, PageSizeSearchResult::ParentPage(_))
+    }
+}
 impl LoadedDocument {
     pub fn from_document_like(source_path: SafePath, data: Box<Document>) -> Self {
         LoadedDocument { source_path, data }
@@ -45,39 +56,80 @@ impl LoadedDocument {
     pub fn source_path(&self) -> &SafePath {
         &self.source_path
     }
-    pub fn page_size(&self) -> Option<CustomPage> {
-        let mut page_size: Option<CustomPage> = None;
-        for page in self.data.page_iter() {
-            let Ok(media_box_array) = self
-                .data
-                .get_object(page)
-                .and_then(|p| p.as_dict())
-                .and_then(|d| d.get(b"MediaBox"))
-                .and_then(|mb| mb.as_array())
-            else {
-                debug_t!("debug.invalid_mediabox", document = self);
-                continue;
-            };
-            // all sizes in points
-            let x_min = media_box_array[0].as_float().unwrap_or_default();
-            let y_min = media_box_array[1].as_float().unwrap_or_default();
-            let x_max = media_box_array[2].as_float().unwrap_or_default();
-            let y_max = media_box_array[3].as_float().unwrap_or_default();
-            let horizontal = Length::from_points(x_max - x_min);
-            let vertical = Length::from_points(y_max - y_min);
-            if horizontal <= Length::zero() || vertical <= Length::zero() {
-                debug_t!("debug.zero_mediabox", document = self);
-                continue;
+    fn get_size_or_parent(&self, page: &PageSizeSearchResult) -> PageSizeSearchResult {
+        if let PageSizeSearchResult::ParentPage(pg) = page {
+            let dict_res = self.data.get_object(*pg).and_then(|p| p.as_dict());
+            if let Ok(dict) = dict_res {
+                let mediabox_res = dict.get(b"MediaBox").and_then(|m| m.as_array());
+                if let Ok(media_box_array) = mediabox_res {
+                    let x_min = media_box_array[0].as_float().unwrap_or_default();
+                    let y_min = media_box_array[1].as_float().unwrap_or_default();
+                    let x_max = media_box_array[2].as_float().unwrap_or_default();
+                    let y_max = media_box_array[3].as_float().unwrap_or_default();
+                    let horizontal = Length::from_points(x_max - x_min);
+                    let vertical = Length::from_points(y_max - y_min);
+                    if horizontal <= Length::zero() || vertical <= Length::zero() {
+                        debug_t!("debug.zero_mediabox", document = self);
+                    }
+                    PageSizeSearchResult::Size(CustomPage {
+                        horizontal,
+                        vertical,
+                    })
+                } else if let Ok(parent) = dict.get(b"Parent").and_then(|p| p.as_reference()) {
+                    PageSizeSearchResult::ParentPage(parent)
+                } else {
+                    PageSizeSearchResult::NotFound
+                }
+            } else {
+                PageSizeSearchResult::NotFound
             }
-            page_size = Some(CustomPage {
-                horizontal,
-                vertical,
-            });
+        } else {
+            *page
         }
-        if page_size.is_none() {
+    }
+
+    pub fn page_sizes(&self) -> Vec<Option<CustomPage>> {
+        self.data
+            .page_iter()
+            .map(|p| self.page_size_impl(p))
+            .collect()
+    }
+
+    fn page_size_impl(&self, page: ObjectId) -> Option<CustomPage> {
+        let mut search_result = PageSizeSearchResult::ParentPage(page);
+        while search_result.is_parent() {
+            search_result = self.get_size_or_parent(&search_result);
+            // println!("{:?}", search_result);
+        }
+        match search_result {
+            PageSizeSearchResult::Size(custom_page) => {
+                // println!("{}", custom_page);
+                Some(custom_page)
+            }
+            _ => {
+                // Parent cannot happen here
+                error_t!("error.invalid_mediabox", document = self);
+                None
+            }
+        }
+    }
+    pub fn last_page_size(&self) -> Option<CustomPage> {
+        let first_page = self.data.page_iter().last();
+        if let Some(fp) = first_page {
+            self.page_size_impl(fp)
+        } else {
             error_t!("error.invalid_mediabox", document = self);
+            None
         }
-        page_size
+    }
+    pub fn first_page_size(&self) -> Option<CustomPage> {
+        let first_page = self.data.page_iter().next();
+        if let Some(fp) = first_page {
+            self.page_size_impl(fp)
+        } else {
+            error_t!("error.invalid_mediabox", document = self);
+            None
+        }
     }
     pub fn load_pdf(path: &Path) -> Result<LoadedDocument, DocumentLoadError> {
         Document::load(path)

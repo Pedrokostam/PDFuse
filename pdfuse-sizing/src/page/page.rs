@@ -1,5 +1,6 @@
 use crate::error::{IsoPaperError, PageSizeError};
-use crate::page::{CustomPage, IsoPaper, UsPaper};
+use crate::page::iso_paper::IsoPaperType;
+use crate::page::{CustomPage, IsoPaper, UsPaper, MAX_ISO_SIZE};
 use crate::{Length, Size, TransposableSize};
 use serde::{Deserialize, Serialize};
 use std::convert::From;
@@ -69,6 +70,28 @@ impl Page {
                 }
             }
         }
+    }
+    /// Wraps `size` into a [`Page`], trying to match it to a standard size (ISO, American).
+    pub fn normalize(size: CustomPage) -> Page {
+        for i in 0..MAX_ISO_SIZE {
+            for typ in &[IsoPaperType::A, IsoPaperType::B, IsoPaperType::C] {
+                let s = IsoPaper::new(*typ, i, false);
+                if size == s.to_custom_size() {
+                    return Page::Standard(s);
+                }
+
+                let s_t = IsoPaper::new(*typ, i, true);
+                if size == s_t.to_custom_size() {
+                    return Page::Standard(s_t);
+                }
+            }
+        }
+        for usa in &[UsPaper::Executive,UsPaper::Tabloid,UsPaper::Ledger,UsPaper::Letter,UsPaper::Legal]{
+            if size == usa.to_custom_size(){
+                return Page::American(*usa);
+            }
+        }
+        Page::Custom(size)
     }
 }
 impl Display for Page {
@@ -188,8 +211,7 @@ mod tests {
             ("12cm", CustomPage::from_centimeters(12, 12).into()),
         ];
         for (text, paper) in test_vals {
-            let parsed =
-                Page::try_from_string(text).expect(&format!("Failed parsing '{text}'"));
+            let parsed = Page::try_from_string(text).expect(&format!("Failed parsing '{text}'"));
             assert_eq!(parsed, paper, "{text}");
         }
     }

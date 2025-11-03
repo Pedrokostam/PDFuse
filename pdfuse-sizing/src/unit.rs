@@ -1,13 +1,37 @@
 use crate::error::UnitParseError;
 
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy,Eq)]
 pub enum Unit {
     Meter,
     Millimeter,
     Inch,
     Point,
     Centimeter,
+}
+impl TryFrom<&str> for Unit{
+    type Error=UnitParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Unit::try_from_string(value)
+    }
+}
+impl TryFrom<String> for Unit{
+    type Error=UnitParseError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Unit::try_from_string(&value)
+    }
+}
+impl Default for Unit{
+    fn default() -> Self {
+        Unit::DEFAULT_UNIT
+    }
+}
+impl Default for &Unit{
+    fn default() -> Self {
+        &Unit::DEFAULT_UNIT
+    }
 }
 
 impl Unit {
@@ -21,8 +45,9 @@ impl Unit {
         }
     }
     pub const DEFAULT_UNIT: Unit = Unit::Centimeter;
-    fn from_string_impl(text: &str) -> Result<Self, UnitParseError> {
-        match text {
+    fn try_from_string_impl(text: &str) -> Result<Self, UnitParseError> {
+        let swap = text.replace("tre", "ter");
+        match swap.as_str() {
             "m" | "meter" | "meters" => Ok(Unit::Meter),
             "mm" | "milli" | "millis" | "millimeters" | "millimeter" => Ok(Unit::Millimeter),
             "cm" | "centimeters" | "centimeter" => Ok(Unit::Centimeter),
@@ -32,9 +57,9 @@ impl Unit {
             _ => Err(UnitParseError::UnrecognizedUnit(text.to_owned())),
         }
     }
-    pub fn from_string(text: &str) -> Result<Self, UnitParseError> {
+    pub fn try_from_string(text: &str) -> Result<Self, UnitParseError> {
         let trim = text.trim();
-        Self::from_string_impl(trim).or_else(|_| Self::from_string_impl(&trim.to_ascii_lowercase()))
+        Self::try_from_string_impl(trim).or_else(|_| Self::try_from_string_impl(&trim.to_ascii_lowercase()))
     }
     /// mm / m
     const MM_OVER_M: f64 = 1000.0;
@@ -98,6 +123,11 @@ impl Unit {
         conv.round() / safe_margin
     }
 }
+impl std::fmt::Display for Unit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -117,11 +147,11 @@ mod tests {
         for (texts, unit) in vals {
             for text in texts {
                 let target = Ok(unit);
-                assert_eq!(Unit::from_string(text), target, "{text}");
+                assert_eq!(Unit::try_from_string(text), target, "{text}");
                 let pad = format!("  {text}  ");
-                assert_eq!(Unit::from_string(&pad), target, "{}", &pad);
+                assert_eq!(Unit::try_from_string(&pad), target, "{}", &pad);
                 let upper = pad.to_uppercase();
-                assert_eq!(Unit::from_string(&upper), target, "{}", &upper);
+                assert_eq!(Unit::try_from_string(&upper), target, "{}", &upper);
             }
         }
     }

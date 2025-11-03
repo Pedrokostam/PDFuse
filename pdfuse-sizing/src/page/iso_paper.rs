@@ -25,6 +25,8 @@ pub(crate) const C_LENGTHS: &[f64] = &[
     10.0,
 ];
 
+pub const MAX_ISO_SIZE: i8 = (A_LENGTHS.len()-1) as i8;
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IsoPaperType {
     A,
