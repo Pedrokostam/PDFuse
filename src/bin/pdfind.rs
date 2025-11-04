@@ -1,16 +1,11 @@
-use clap::{builder::styling, value_parser, Arg, ArgAction, Command};
+use clap::{ value_parser, Arg, Command};
 use pdfuse_merging::data::LoadedDocument;
 use pdfuse_parameters::path::SafePath;
 use pdfuse_sizing::{
-    page::{CustomPage, Page},
+    page::Page,
     Size, Unit,
 };
 
-const STYLES: styling::Styles = styling::Styles::styled()
-    .header(styling::AnsiColor::Magenta.on_default().bold().italic())
-    .usage(styling::AnsiColor::BrightMagenta.on_default().bold())
-    .literal(styling::AnsiColor::Green.on_default().bold())
-    .placeholder(styling::AnsiColor::Cyan.on_default());
 pub fn main() {
     let file_arg = Arg::new("files")
         .required(true)
@@ -28,7 +23,7 @@ pub fn main() {
         .author("Maciej Krosta")
         .color(clap::ColorChoice::Auto)
         .arg_required_else_help(true)
-        .styles(STYLES)
+        .styles(pdfuse_commandline::styling::STYLES)
         .arg(file_arg)
         .arg(unit_arg);
     let matches = cmd.get_matches();

@@ -4,7 +4,7 @@ use pdfuse_parameters::{
     Bookmarks, Parameters,
 };
 use pdfuse_utils::{
-    collections::{assert_sorted, ensure_sorted},
+    collections::ensure_sorted,
     error_t, get_registered_busy_indicator, get_registered_progress_iterator,
     get_registered_progress_iterator_parallel,
     log::{debug, error},

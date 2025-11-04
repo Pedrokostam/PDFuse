@@ -1,5 +1,4 @@
 use crate::{Args, commandline_help::*};
-use clap::builder::styling;
 use clap::{Arg, ArgAction, ArgGroup, ArgMatches, Command, ValueHint, value_parser};
 use pdfuse_parameters::error::ConfigError;
 use pdfuse_parameters::path::{SafeDestination, SafePath};
@@ -8,12 +7,6 @@ use pdfuse_sizing::page::{CustomPage, Page};
 use pdfuse_utils::set_localization;
 
 const DEFAULT_CONFIG_PATH: &str = "config_auto.toml";
-
-const STYLES: styling::Styles = styling::Styles::styled()
-    .header(styling::AnsiColor::Magenta.on_default().bold().italic())
-    .usage(styling::AnsiColor::BrightMagenta.on_default().bold())
-    .literal(styling::AnsiColor::Green.on_default().bold())
-    .placeholder(styling::AnsiColor::Cyan.on_default());
 
 // \x1b[0m   -> reset all styles
 // \x1b[1m   -> start bold
@@ -288,7 +281,7 @@ pub fn get_command() -> Command {
         .arg_required_else_help(true)
         .after_help(AFTER_HELP)
         .after_long_help(AFTER_LONG_HELP)
-        .styles(STYLES)
+        .styles(crate::styling::STYLES)
         .disable_version_flag(true)
         .args_override_self(true)
         .arg(files)

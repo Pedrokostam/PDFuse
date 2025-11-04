@@ -1,6 +1,7 @@
 mod arguments;
 mod commandline;
 mod commandline_help;
+pub mod styling;
 
 pub use commandline::{get_args,get_args_from};
 
