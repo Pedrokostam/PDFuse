@@ -3,7 +3,7 @@ use clap::{Arg, ArgAction, ArgGroup, ArgMatches, Command, ValueHint, value_parse
 use pdfuse_parameters::error::ConfigError;
 use pdfuse_parameters::path::{SafeDestination, SafePath};
 use pdfuse_parameters::{Bookmarks,  LogLevel, };
-use pdfuse_sizing::page::{CustomPage, Page};
+use pdfuse_sizing::paper::{CustomPage, Page};
 use pdfuse_utils::set_localization;
 
 const DEFAULT_CONFIG_PATH: &str = "config_auto.toml";
@@ -490,7 +490,7 @@ fn get_args_impl(matches: ArgMatches, base: Option<Args>) -> Args {
 #[cfg(test)]
 mod tests {
 
-    use pdfuse_sizing::page::IsoPaper;
+    use pdfuse_sizing::paper::IsoPaper;
 
     use super::*;
 

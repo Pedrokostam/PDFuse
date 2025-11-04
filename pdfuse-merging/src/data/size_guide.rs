@@ -1,6 +1,6 @@
 use pdfuse_parameters::{Parameters};
 use pdfuse_parameters::path::SourcePath;
-use pdfuse_sizing::page::CustomPage;
+use pdfuse_sizing::paper::CustomPage;
 use pdfuse_sizing::Size;
 use pdfuse_utils::Indexed;
 

@@ -1,7 +1,7 @@
 use image::{imageops::FilterType, DynamicImage};
 use lopdf::Document;
 use pdfuse_parameters::path::SafePath;
-use pdfuse_sizing::page::CustomPage;
+use pdfuse_sizing::paper::CustomPage;
 use pdfuse_sizing::{Length, Size};
 use pdfuse_utils::debug_t;
 use printpdf::ImageCompression;

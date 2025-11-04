@@ -1,45 +1,17 @@
+mod bundler;
 mod displayable_range;
 mod page_info_row;
-use std::collections::VecDeque;
-
 use clap::{Arg, ArgAction, Command, value_parser};
 use pdfuse_commandline::styling::TABLE_STYLE;
 use pdfuse_merging::{data::LoadedDocument, error::PageSizeParseError};
 use pdfuse_parameters::path::SafePath;
-use pdfuse_sizing::{
-    Unit,
-    page::Page,
-};
+use pdfuse_sizing::{Unit, paper::Page};
 use tabled::{
     Table,
     settings::{Alignment, object::Columns},
 };
 
 use crate::page_info_row::PageInfoRow;
-
-struct Bundler {
-    pub pages: Vec<usize>,
-    pub text: String,
-    pub value: PageInfoRow,
-}
-impl Bundler {
-    pub fn convert(self) -> PageInfoRow {
-        PageInfoRow {
-            pages: self.pages.into(),
-            size: self.value.size,
-            standard: self.value.standard,
-            unit: self.value.unit,
-            error: self.value.error,
-        }
-    }
-    pub fn new(piw: PageInfoRow) -> Self {
-        Bundler {
-            pages: piw.pages.collect(),
-            text: piw.size_or_error(),
-            value: piw,
-        }
-    }
-}
 
 pub fn main() {
     let file_arg = Arg::new("files")
@@ -96,66 +68,29 @@ pub fn main() {
             .into_iter()
             .map(|x| x.map(Page::normalize))
             .collect();
-        let table_data: VecDeque<PageInfoRow> = sizes
+        let table_data: Vec<PageInfoRow> = sizes
             .into_iter()
             .enumerate()
-            .map(|r| PageInfoRow::new(r.0 + 1, r.1.map_err(|e| e.into()), unit))
+            .map(|r| PageInfoRow::new(r.0 + 1, r.1.map_err(|e| e.into()) ))
             .collect();
 
-        handle_data(table_data, bundle);
-
-        // let mut dup_check: Vec<Page> = vec![];
-        // let mut has_nones = false;
-        // for ss in sizes.iter() {
-        //     has_nones |= ss.is_none();
-        //     if let Some(sss) = ss {
-        //         if !dup_check.contains(sss) {
-        //             dup_check.push(*sss);
-        //         }
-        //     }
-        // }
-        // if dup_check.is_empty() {
-        //     print_size(None, None, unit);
-        // } else if dup_check.len() == 1 && !has_nones {
-        //     print_size(Some(&dup_check[0]), None, unit);
-        // } else {
-        //     let max_width = sizes
-        //         .iter()
-        //         .flatten()
-        //         .map(|x| x.to_custom_size().as_unit_string(unit).len())
-        //         .max();
-        //     for (index, size) in sizes.iter().enumerate() {
-        //         print!("   Page {}: ", index + 1);
-        //         print_size(size.as_ref(), max_width, unit);
-        //     }
-        // }
+        handle_data(table_data, bundle,unit);
     }
 }
-fn handle_data(mut table_data: VecDeque<PageInfoRow>, bundle: bool) {
+fn handle_data(table_data: Vec<PageInfoRow>, bundle: bool, unit:Option<Unit>) {
     let mut tabelka: Table;
     if table_data.is_empty() {
         return;
     }
     if !bundle {
-        tabelka = Table::new(table_data);
+        tabelka = PageInfoRow::build_table(table_data, unit);
     } else {
-        let front = table_data.pop_front().unwrap();
-        let mut bundler = Bundler::new(front);
-        let mut bundled_data: Vec<PageInfoRow> = vec![];
-        for piw in table_data.into_iter() {
-            if piw.size_or_error() == bundler.text {
-                bundler.pages.push(piw.pages.first())
-            } else {
-                bundled_data.push(bundler.convert());
-                bundler = Bundler::new(piw);
-            }
-        }
-        bundled_data.push(bundler.convert());
-        tabelka = Table::new(bundled_data);
+        let bundled = PageInfoRow::bundle_data(table_data);
+        tabelka = PageInfoRow::build_table(bundled, unit);
     }
     tabelka
         .with(TABLE_STYLE)
-        .modify(Columns::new(0..), Alignment::center())
-        .to_string();
+        .modify(Columns::new(0..), Alignment::center());
+    tabelka.to_string();
     println!("{tabelka}");
 }

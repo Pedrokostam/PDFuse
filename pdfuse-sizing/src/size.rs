@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::page::CustomPage;
+use crate::paper::CustomPage;
 
 use super::Length;
 

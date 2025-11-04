@@ -1,5 +1,5 @@
 pub mod error;
-pub mod page;
+pub mod paper;
 pub(crate) mod parsing;
 mod size;
 mod unit;

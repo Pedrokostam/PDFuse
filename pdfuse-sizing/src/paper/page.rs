@@ -1,6 +1,6 @@
 use crate::error::{IsoPaperError, PageSizeError};
-use crate::page::iso_paper::IsoPaperType;
-use crate::page::{CustomPage, IsoPaper, UsPaper, MAX_ISO_SIZE};
+use crate::paper::iso_paper::IsoPaperType;
+use crate::paper::{CustomPage, IsoPaper, UsPaper, MAX_ISO_SIZE};
 use crate::{Length, Size, TransposableSize};
 use serde::{Deserialize, Serialize};
 use std::convert::From;
@@ -86,12 +86,21 @@ impl Page {
                 }
             }
         }
-        for usa in &[UsPaper::Executive,UsPaper::Tabloid,UsPaper::Ledger,UsPaper::Letter,UsPaper::Legal]{
-            if size == usa.to_custom_size(){
+        for usa in &[
+            UsPaper::Executive,
+            UsPaper::Tabloid,
+            UsPaper::Ledger,
+            UsPaper::Letter,
+            UsPaper::Legal,
+        ] {
+            if size == usa.to_custom_size() {
                 return Page::American(*usa);
             }
         }
         Page::Custom(size)
+    }
+    pub fn is_custom(&self) -> bool {
+        matches!(self, Page::Custom(_))
     }
 }
 impl Display for Page {

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     error::LengthParseError,
-    page::{IsoPaper, Page, UsPaper},
+    paper::{IsoPaper, Page, UsPaper},
     Length, Size, TransposableSize, Unit,
 };
 

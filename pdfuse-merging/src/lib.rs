@@ -28,7 +28,7 @@ mod tests {
     const MEDIABOX_PATTERN: &str = r"^MediaBox.*\s(?P<W>\d+\.\d\d)\s+(?P<H>\d+\.\d\d)";
     use pdfuse_parameters::{path::{SafePath, SourcePath}, Parameters };
     use pdfuse_sizing::{
-        page::{CustomPage, IsoPaper, Page, UsPaper},
+        paper::{CustomPage, IsoPaper, Page, UsPaper},
         TransposableSize,
     };
 

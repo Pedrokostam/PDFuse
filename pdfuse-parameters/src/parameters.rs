@@ -3,7 +3,7 @@ use crate::{
     Bookmarks,
 };
 
-use pdfuse_sizing::page::{CustomPage, Page};
+use pdfuse_sizing::paper::{CustomPage, Page};
 use pdfuse_utils::Indexed;
 
 /// Parameters used during conversion, creation, and merging of PDFs.

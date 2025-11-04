@@ -532,7 +532,6 @@ where
             debug!("{existing_bookmark:?}");
             output_document.add_bookmark(existing_bookmark, output_bookmark_parent);
         }
-        output_bookmark_parent = None;
         first_page_of_doc = true;
         output_documents_objects.extend(iterated_document.objects);
     }

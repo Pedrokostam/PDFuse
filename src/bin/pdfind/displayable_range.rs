@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
+#[derive(Debug,Clone)]
 pub struct DisplayableRange(std::ops::Range<usize>);
-
 impl DisplayableRange {
     pub fn len(&self) -> usize {
         self.0.len()
@@ -11,8 +11,8 @@ impl DisplayableRange {
         self.0.start
     }
 
-    pub fn collect(&self) -> Vec<usize> {
-        self.0.clone().collect()
+    pub fn into_vec(self) -> Vec<usize> {
+        self.0.collect()
     }
 }
 

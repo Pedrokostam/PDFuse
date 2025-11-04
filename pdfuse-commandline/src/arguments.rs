@@ -6,7 +6,7 @@ use pdfuse_parameters::{
     get_files,
     path::{SafeDestination, SafePath},
 };
-use pdfuse_sizing::page::{CustomPage, IsoPaper, Page};
+use pdfuse_sizing::paper::{CustomPage, IsoPaper, Page};
 use pdfuse_utils::debug_t;
 use serde::{Deserialize, Serialize};
 
