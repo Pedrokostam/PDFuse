@@ -28,14 +28,14 @@ impl From<std::io::Error> for LibreConversionError {
         Self::Process(value)
     }
 }
-impl Error for LibreConversionError{}
+impl Error for LibreConversionError {}
 
 #[derive(Debug)]
 pub enum DocumentLoadError {
     Io(std::io::Error),
     LibreConversion(LibreConversionError),
     InvalidFile(lopdf::Error),
-    InvalidImage(ImageLoadError)
+    InvalidImage(ImageLoadError),
 }
 impl From<LibreConversionError> for DocumentLoadError {
     fn from(value: LibreConversionError) -> Self {
@@ -52,7 +52,7 @@ impl From<std::io::Error> for DocumentLoadError {
         Self::Io(value)
     }
 }
-impl From<ImageLoadError> for DocumentLoadError{
+impl From<ImageLoadError> for DocumentLoadError {
     fn from(value: ImageLoadError) -> Self {
         Self::InvalidImage(value)
     }
@@ -60,25 +60,37 @@ impl From<ImageLoadError> for DocumentLoadError{
 impl Display for DocumentLoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DocumentLoadError::LibreConversion(libre_conversion_error) => libre_conversion_error.fmt(f),
+            DocumentLoadError::LibreConversion(libre_conversion_error) => {
+                libre_conversion_error.fmt(f)
+            }
             DocumentLoadError::InvalidFile(error) => error.fmt(f),
             DocumentLoadError::Io(error) => error.fmt(f),
             DocumentLoadError::InvalidImage(image_load_error) => image_load_error.fmt(f),
         }
     }
 }
-impl Error for DocumentLoadError{}
+impl Error for DocumentLoadError {}
 
 #[derive(Debug)]
-pub enum ImageLoadError{
+pub enum ImageLoadError {
     UnknownFormat(SafePath),
-    UnknownPixelType(SafePath)
+    UnknownPixelType(SafePath),
 }
-impl Display for ImageLoadError{
+impl Display for ImageLoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self{
-            ImageLoadError::UnknownFormat(p) =>write_t!(f,"error.image_invalid_format",path=p),
-            ImageLoadError::UnknownPixelType(p) => write_t!(f,"error.image_invalid_pixel_type",path=p),
+        match self {
+            ImageLoadError::UnknownFormat(p) => write_t!(f, "error.image_invalid_format", path = p),
+            ImageLoadError::UnknownPixelType(p) => {
+                write_t!(f, "error.image_invalid_pixel_type", path = p)
+            }
         }
     }
 }
+#[derive(Debug)]
+pub struct PageSizeParseError;
+impl Display for PageSizeParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write_t!(f, "error.page_parse")
+    }
+}
+impl Error for PageSizeParseError {}

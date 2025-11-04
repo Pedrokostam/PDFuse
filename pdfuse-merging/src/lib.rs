@@ -7,7 +7,7 @@
 // #![feature(inherent_associated_types)]
 pub mod data;
 // mod documenter;
-mod error;
+pub mod error;
 pub use data::load;
 rust_i18n::i18n!();
 

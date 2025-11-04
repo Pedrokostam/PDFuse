@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 pdfuse-sizing = { path = "../pdfuse-sizing" }
 pdfuse-utils = { path = "../pdfuse-utils" }
+tabled.workspace = true
 pdfuse-parameters = { path = "../pdfuse-parameters" }
 clap = { version = "4.5.48", features = ["color","derive","cargo","unicode","wrap_help","usage","help","error-context","suggestions","string"] }
 log.workspace = true

@@ -11,7 +11,7 @@ use std::{
 
 use crate::{
     conditional_slow_down,
-    error::{DocumentLoadError, LibreConversionError},
+    error::{DocumentLoadError, LibreConversionError, PageSizeParseError},
 };
 
 #[derive(Debug)]
@@ -88,14 +88,14 @@ impl LoadedDocument {
         }
     }
 
-    pub fn page_sizes(&self) -> Vec<Option<CustomPage>> {
+    pub fn page_sizes(&self) -> Vec<Result<CustomPage,PageSizeParseError>> {
         self.data
             .page_iter()
             .map(|p| self.page_size_impl(p))
             .collect()
     }
 
-    fn page_size_impl(&self, page: ObjectId) -> Option<CustomPage> {
+    fn page_size_impl(&self, page: ObjectId) -> Result<CustomPage, PageSizeParseError> {
         let mut search_result = PageSizeSearchResult::ParentPage(page);
         while search_result.is_parent() {
             search_result = self.get_size_or_parent(&search_result);
@@ -104,31 +104,28 @@ impl LoadedDocument {
         match search_result {
             PageSizeSearchResult::Size(custom_page) => {
                 // println!("{}", custom_page);
-                Some(custom_page)
+                Ok(custom_page)
             }
             _ => {
                 // Parent cannot happen here
-                error_t!("error.invalid_mediabox", document = self);
-                None
+                Err(PageSizeParseError {})
             }
         }
     }
-    pub fn last_page_size(&self) -> Option<CustomPage> {
+    pub fn last_page_size(&self) -> Result<CustomPage,PageSizeParseError> {
         let first_page = self.data.page_iter().last();
         if let Some(fp) = first_page {
             self.page_size_impl(fp)
         } else {
-            error_t!("error.invalid_mediabox", document = self);
-            None
+                Err(PageSizeParseError {})
         }
     }
-    pub fn first_page_size(&self) -> Option<CustomPage> {
+    pub fn first_page_size(&self) -> Result<CustomPage,PageSizeParseError> {
         let first_page = self.data.page_iter().next();
         if let Some(fp) = first_page {
             self.page_size_impl(fp)
         } else {
-            error_t!("error.invalid_mediabox", document = self);
-            None
+                Err(PageSizeParseError {})
         }
     }
     pub fn load_pdf(path: &Path) -> Result<LoadedDocument, DocumentLoadError> {

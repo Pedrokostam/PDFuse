@@ -100,7 +100,7 @@ impl SizeGuide {
                         size_map.resize(ind_res.index(), *last_val);
                         // if this document has size, append it
                         // TODO can document not have a size?
-                        if let Some(curr) = loaded_document.first_page_size() {
+                        if let Ok(curr) = loaded_document.last_page_size() {
                             size_map.push(curr);
                         }
                     }
