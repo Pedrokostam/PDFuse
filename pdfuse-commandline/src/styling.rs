@@ -1,5 +1,5 @@
 use clap::builder::styling;
-use tabled::settings::{Theme,Style};
+use tabled::settings::Style;
 
 pub const STYLES: styling::Styles = styling::Styles::styled()
     .header(styling::AnsiColor::Magenta.on_default().bold().italic())

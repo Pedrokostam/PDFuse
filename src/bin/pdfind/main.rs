@@ -7,12 +7,12 @@ use pdfuse_commandline::styling::TABLE_STYLE;
 use pdfuse_merging::{data::LoadedDocument, error::PageSizeParseError};
 use pdfuse_parameters::path::SafePath;
 use pdfuse_sizing::{
-    Size, Unit,
-    page::{CustomPage, Page},
+    Unit,
+    page::Page,
 };
 use tabled::{
-    Table, Tabled,
-    settings::{Alignment, Panel, object::Columns},
+    Table,
+    settings::{Alignment, object::Columns},
 };
 
 use crate::page_info_row::PageInfoRow;

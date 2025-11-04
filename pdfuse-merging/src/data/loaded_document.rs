@@ -2,7 +2,7 @@ use lopdf::{Document, ObjectId};
 use pdfuse_parameters::path::SafePath;
 use pdfuse_sizing::page::CustomPage;
 use pdfuse_sizing::Length;
-use pdfuse_utils::{debug_t, error_t};
+use pdfuse_utils::debug_t;
 use std::{
     fmt::{Debug, Display},
     path::Path,
