@@ -1,7 +1,7 @@
 use std::path::Path;
+use std::sync::LazyLock;
 
 use indicatif::ProgressBar;
-use once_cell::sync::Lazy;
 use pdfuse_utils::{error_t, get_registered_busy_indicator};
 use pdfuse_utils::{info_t, Indexed};
 use walkdir::{DirEntry, WalkDir};
@@ -33,10 +33,10 @@ pub(crate) const TEXT_EXTENSIONS: &[&str] = &[
 
 pub(crate) const PDF_EXTENSIONS: &[&str] = &["pdf"];
 
-pub(crate) static ALL_SIMPLE_SUPPORTED_EXTENSIONS: Lazy<Vec<&str>> =
-    Lazy::new(|| [IMAGE_EXTENSIONS, PDF_EXTENSIONS].concat());
+pub(crate) static ALL_SIMPLE_SUPPORTED_EXTENSIONS: LazyLock<Vec<&str>> =
+    LazyLock::new(|| [IMAGE_EXTENSIONS, PDF_EXTENSIONS].concat());
 
-pub(crate) static ALL_LIBRE_EXTENSIONS: Lazy<Vec<&str>> = Lazy::new(|| {
+pub(crate) static ALL_LIBRE_EXTENSIONS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     let mut s = [
         DRAWING_EXTENSIONS,
         PRESENTATION_EXTENSIONS,
@@ -48,7 +48,7 @@ pub(crate) static ALL_LIBRE_EXTENSIONS: Lazy<Vec<&str>> = Lazy::new(|| {
     s
 });
 
-pub(crate) static ALL_SUPPORTED_EXTENSIONS: Lazy<Vec<&str>> = Lazy::new(|| {
+pub(crate) static ALL_SUPPORTED_EXTENSIONS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     [
         ALL_SIMPLE_SUPPORTED_EXTENSIONS.as_slice(),
         ALL_LIBRE_EXTENSIONS.as_slice(),

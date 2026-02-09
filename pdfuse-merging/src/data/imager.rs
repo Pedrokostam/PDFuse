@@ -9,6 +9,8 @@ use printpdf::{ImageOptimizationOptions, PdfDocument, PdfPage, RawImageData, Raw
 use printpdf::{PdfSaveOptions, PdfWarnMsg, RawImage};
 
 use crate::conditional_slow_down;
+use crate::data::document_source::DocumentSources;
+use crate::data::LoadedDocument;
 use crate::error::ImageLoadError;
 
 use super::LoadedImage;
@@ -61,11 +63,11 @@ pub struct Imager {
     pub(crate) pages: Vec<PdfPage>,
     pub(crate) quality: u8,
     pub(crate) lossless: bool,
+    page_paths: Vec<SafePath>,
 }
 impl Imager {
-    pub fn close_and_into_document(mut self) -> Document {
-        // unsafe { self.document.get_inner() }
-        let save_options = PdfSaveOptions {
+    fn get_options(&self) -> PdfSaveOptions {
+        PdfSaveOptions {
             optimize: true,
             subset_fonts: true,
             secure: true,
@@ -78,7 +80,38 @@ impl Imager {
                 },
                 ..Default::default()
             }),
+        }
+    }
+
+    pub fn close_and_into_loaded_document(self) -> LoadedDocument {
+        let Imager {
+            document,
+            page_size,
+            dpi,
+            margin,
+            pages,
+            quality,
+            lossless,
+            page_paths,
+        } = self;
+        let closable = Imager {
+            document,
+            page_size,
+            dpi,
+            margin,
+            pages,
+            quality,
+            lossless,
+            page_paths: vec![],
         };
+        let closed = closable.close_and_into_document();
+        LoadedDocument::from_document_like(page_paths.into(), Box::new(closed))
+
+        // let opt = get_options();
+    }
+    pub fn close_and_into_document(mut self) -> Document {
+        // unsafe { self.document.get_inner() }
+        let save_options = self.get_options();
         /*
         Regarding SaveOptions (for printpdf 0.8.2):
         - format
@@ -122,6 +155,7 @@ impl Imager {
             pages: vec![],
             quality,
             lossless,
+            page_paths: vec![],
         }
     }
 
@@ -133,7 +167,7 @@ impl Imager {
 
         let image_size = get_image_size(&adjusted_image, self.dpi);
 
-        let pdf_image = dynamic_to_pdf(adjusted_image, image_path)?;
+        let pdf_image = dynamic_to_pdf(adjusted_image, image_path.clone())?;
 
         let image_id = self.document.add_image(&pdf_image);
         let scale = page_with_margins.fit_size(&image_size);
@@ -154,11 +188,21 @@ impl Imager {
             page_size.vertical.into(),
             vec![image_contents],
         );
+        self.page_paths.push(image_path);
         self.pages.push(page);
         conditional_slow_down();
         Ok(())
     }
 }
+
+// impl From<Imager> for LoadedDocument {
+//     fn from(value: Imager) -> Self {
+//         LoadedDocument::from_document_like(
+//             DocumentSources::Multiple(value.page_paths.clone()),
+//             Box::new(value.close_and_into_document()),
+//         )
+//     }
+// }
 
 fn adjust_to_dpi(image: LoadedImage, draw_area: CustomPage, dpi: f64) -> DynamicImage {
     let horizontal_pixel_max = draw_area.horizontal.inch() * dpi;

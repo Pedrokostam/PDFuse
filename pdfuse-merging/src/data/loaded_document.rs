@@ -11,13 +11,14 @@ use std::{
 
 use crate::{
     conditional_slow_down,
+    data::document_source::DocumentSources,
     error::{DocumentLoadError, LibreConversionError, PageSizeParseError},
 };
 
 #[derive(Debug)]
 pub struct LoadedDocument {
     data: Box<Document>,
-    source_path: SafePath,
+    source_paths: DocumentSources,
 }
 impl From<LoadedDocument> for Document {
     fn from(value: LoadedDocument) -> Self {
@@ -31,7 +32,7 @@ impl Display for LoadedDocument {
             f,
             "Document: {p} pages from \"{path}\"",
             p = self.page_count(),
-            path = self.source_path().display()
+            path = self.source_paths
         )
     }
 }
@@ -47,15 +48,15 @@ impl PageSizeSearchResult {
     }
 }
 impl LoadedDocument {
-    pub fn from_document_like(source_path: SafePath, data: Box<Document>) -> Self {
-        LoadedDocument { source_path, data }
+    pub fn from_document_like(source_paths: DocumentSources, data: Box<Document>) -> Self {
+        LoadedDocument { source_paths, data }
     }
     pub fn page_count(&self) -> usize {
         self.data.get_pages().len()
     }
-    pub fn source_path(&self) -> &SafePath {
-        &self.source_path
-    }
+    // pub fn source_path(&self) -> &SafePath {
+    //     &self.source_paths
+    // }
     fn get_size_or_parent(&self, page: &PageSizeSearchResult) -> PageSizeSearchResult {
         if let PageSizeSearchResult::ParentPage(pg) = page {
             let dict_res = self.data.get_object(*pg).and_then(|p| p.as_dict());
@@ -88,7 +89,7 @@ impl LoadedDocument {
         }
     }
 
-    pub fn page_sizes(&self) -> Vec<Result<CustomPage,PageSizeParseError>> {
+    pub fn page_sizes(&self) -> Vec<Result<CustomPage, PageSizeParseError>> {
         self.data
             .page_iter()
             .map(|p| self.page_size_impl(p))
@@ -112,29 +113,32 @@ impl LoadedDocument {
             }
         }
     }
-    pub fn last_page_size(&self) -> Result<CustomPage,PageSizeParseError> {
+    pub fn last_page_size(&self) -> Result<CustomPage, PageSizeParseError> {
         let first_page = self.data.page_iter().last();
         if let Some(fp) = first_page {
             self.page_size_impl(fp)
         } else {
-                Err(PageSizeParseError {})
+            Err(PageSizeParseError {})
         }
     }
-    pub fn first_page_size(&self) -> Result<CustomPage,PageSizeParseError> {
+    pub fn first_page_size(&self) -> Result<CustomPage, PageSizeParseError> {
         let first_page = self.data.page_iter().next();
         if let Some(fp) = first_page {
             self.page_size_impl(fp)
         } else {
-                Err(PageSizeParseError {})
+            Err(PageSizeParseError {})
         }
     }
     pub fn load_pdf(path: &Path) -> Result<LoadedDocument, DocumentLoadError> {
         Document::load(path)
             .map(|data| LoadedDocument {
                 data: Box::new(data),
-                source_path: SafePath::new(path),
+                source_paths: DocumentSources::Single(SafePath::new(path)),
             })
             .map_err(Into::into)
+    }
+    pub fn source_paths(&self) -> &DocumentSources {
+        &self.source_paths
     }
 }
 pub fn convert_document_to_pdf(

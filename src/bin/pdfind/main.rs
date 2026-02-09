@@ -40,7 +40,7 @@ pub fn main() {
     let matches = cmd.get_matches();
     let files_to_check: Vec<SafePath> = matches
         .get_many::<SafePath>("files")
-        .unwrap()
+        .expect("Files are required arguments")
         .cloned()
         .collect();
     let unit = matches.get_one::<Unit>("unit").cloned();
@@ -56,7 +56,7 @@ pub fn main() {
             println!("\x1b[31m{}\x1b[0m", e);
             continue;
         }
-        let doc = load_result.unwrap();
+        let doc = load_result.expect("Doc should already be loaded");
         if doc.page_count() == 0 {
             println!("\x1b[33mDocument has no pages\x1b[0m");
             continue;

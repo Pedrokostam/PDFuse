@@ -26,7 +26,7 @@ impl PageInfoRow {
         if front.is_none() {
             return vec![];
         }
-        let mut bundler = Bundler::new(front.unwrap());
+        let mut bundler = Bundler::new(front.expect("Front has already been deemed to be some"));
         let mut bundled = vec![];
         for item in iterator {
             if item.pseudo_hash == bundler.value.pseudo_hash {
@@ -73,7 +73,7 @@ impl PageInfoRow {
                 Page::Standard(iso_paper) => {
                     let s = iso_paper.to_string();
                     if let Some(unprefixed) = s.strip_prefix('^') {
-                        unprefixed.to_owned() + " rotated"
+                        unprefixed.to_owned() + " (horizontal)"
                     } else {
                         s
                     }

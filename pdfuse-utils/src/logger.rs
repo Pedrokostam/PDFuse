@@ -1,12 +1,11 @@
 use core::fmt;
-use std::fmt::Display;
+use std::{fmt::Display, sync::{ OnceLock}};
 
 use colored::{ColoredString, Colorize};
 use indicatif::{MultiProgress, ProgressBar};
 use log::{Level, LevelFilter, Metadata, Record};
-use once_cell::{self, sync::OnceCell};
 
-static MULTI: OnceCell<MultiProgress> = OnceCell::new();
+static MULTI: OnceLock<MultiProgress> = OnceLock::new();
 
 pub struct ConsoleLogger;
 enum Message {

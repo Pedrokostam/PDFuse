@@ -16,6 +16,7 @@ impl TryFrom<&str> for Unit{
         Unit::try_from_string(value)
     }
 }
+
 impl TryFrom<String> for Unit{
     type Error=UnitParseError;
 
@@ -23,6 +24,7 @@ impl TryFrom<String> for Unit{
         Unit::try_from_string(&value)
     }
 }
+
 impl Default for Unit{
     fn default() -> Self {
         Unit::DEFAULT_UNIT

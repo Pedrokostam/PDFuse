@@ -1,9 +1,8 @@
 use std::{
     fmt::Display,
-    ops::{Add, Div, Mul, Neg, Sub},
+    ops::{Add, Div, Mul, Neg, Sub}, sync::LazyLock,
 };
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -223,8 +222,8 @@ impl CustomPage {
         )
     }
     pub fn try_from_string(text: &str) -> Result<Self, LengthParseError> {
-        static LAST_UNIT_REGEX: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r"(?i)([A-Z]+)[\s;,]*$").unwrap());
+        static LAST_UNIT_REGEX: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r"(?i)([A-Z]+)[\s;,]*$").unwrap());
         let last_unit_str = LAST_UNIT_REGEX
             .captures(text)
             .and_then(|c| c.get(0))

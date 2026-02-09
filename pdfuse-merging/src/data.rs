@@ -19,6 +19,7 @@ pub use loaded_document::LoadedDocument;
 pub use loaded_image::LoadedImage;
 
 use crate::{conditional_slow_down, error::DocumentLoadError};
+mod document_source;
 mod imager;
 mod loaded_document;
 mod loaded_image;
@@ -193,13 +194,12 @@ fn sequential_documentize(
                 match item {
                     Data::Document(loaded_document) => {
                         if let Some(img) = imager {
-                            let new_images = LoadedDocument::from_document_like(
-                                Default::default(),
-                                Box::new(img.close_and_into_document()),
-                            );
+                            let new_images = img.close_and_into_loaded_document();
                             output.push(Indexed::new(index - 1, Ok(new_images)));
                             imager = None;
                         };
+                        // let s = loaded_document.first_page_size();
+                        // let s2 = loaded_document.last_page_size();
                         output.push(Indexed::new(index, Ok(loaded_document)));
                     }
                     Data::Image(loaded_image) => {
@@ -227,10 +227,7 @@ fn sequential_documentize(
         };
     }
     if let Some(img) = imager {
-        let new_images = LoadedDocument::from_document_like(
-            Default::default(),
-            Box::new(img.close_and_into_document()),
-        );
+        let new_images = img.close_and_into_loaded_document();
         output.push(Indexed::new(index, Ok(new_images)));
     }
     output
@@ -322,12 +319,8 @@ fn one_image_imager(
         parameters.image_quality,
         parameters.image_lossless_compression,
     );
-    let source_path = image.source_path().to_owned();
     match refimg.add_image(image) {
-        Ok(_) => Ok(LoadedDocument::from_document_like(
-            source_path,
-            Box::new(refimg.close_and_into_document()),
-        )),
+        Ok(_) => Ok(refimg.close_and_into_loaded_document()),
         Err(e) => Err(e.into()),
     }
 }
@@ -387,7 +380,7 @@ pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
     };
     all_documents_to_merge.sort_unstable();
     merge_documents(
-        all_documents_to_merge.into_iter(),
+        all_documents_to_merge,
         &parameters.output_file,
         parameters.bookmarks,
     );
@@ -469,14 +462,14 @@ fn preload_pdf(path: SafePath) -> PdfResult<Data> {
 
 // pub fn merge_documents<T>(documents: T, output_path: &Path)
 
-
-
-pub fn merge_documents<T>(documents: T, output_path: &Path, bookmark: Bookmarks)
-where
-    T: IntoIterator<Item = IndexedPdfResult<LoadedDocument>> + ExactSizeIterator,
-{
+pub fn merge_documents(
+    documents: Vec<IndexedPdfResult<LoadedDocument>>,
+    output_path: &Path,
+    bookmark: Bookmarks,
+) {
     // Define a starting max_id (will be used as start index for object_ids)
     let busy = get_registered_busy_indicator("_&Generating PDF...");
+    // Keeps count of ids in the merged document
     let mut max_id = 1;
     // Collect all Documents Objects grouped by a map
     let mut output_documents_pages: BTreeMap<ObjectId, Object> = BTreeMap::new();
@@ -484,36 +477,40 @@ where
     let mut output_document = Document::with_version("1.5");
     // https://github.com/J-F-Liu/lopdf/blob/0d65f6ed5b55fde1a583861535b4bfc6cdf42de1/README.md
     let mut errors: Vec<usize> = vec![];
-    let iterator = documents.into_iter();
+    assert!(
+        documents.is_sorted_by_key(|i| i.index()),
+        "Indices are out-of-order in merge_documents!"
+    );
     let mut first_page_of_doc = true;
-    let mut last_index: Option<usize> = None;
-    for result in iterator {
-        if let Some(li) = last_index {
-            assert!(
-                li < result.index(),
-                "Indices are out-of-order in merge_documents!"
-            );
-        }
-        last_index = Some(result.index());
+    let mut bookmark_count = 0;
+    for result in documents {
         if result.value().is_err() {
             errors.push(result.index());
             continue;
         }
         let (index, res_loaded_document) = result.deconstruct();
         let loaded_document = res_loaded_document.expect("Already checked for errors");
-        let path = loaded_document.source_path().to_owned();
+        let path = loaded_document.source_paths().to_string();
+        let b = loaded_document
+            .source_paths()
+            .get_source_bookmarks(bookmark, bookmark_count);
+        bookmark_count += b.len();
+
         let mut iterated_document: Document = loaded_document.into();
         iterated_document.renumber_objects_with(max_id);
         max_id = iterated_document.max_id + 1;
         let mut output_bookmark_parent: Option<u32> = None;
-        output_documents_pages.extend(iterated_document.get_pages().into_values().map(
-            |object_id| {
+        let pages_to_add = iterated_document
+            .get_pages()
+            .into_values()
+            .map(|object_id| {
                 if first_page_of_doc {
                     first_page_of_doc = false;
+
                     let bookmark_text = match bookmark {
                         Bookmarks::None => Some("A".to_owned()),
                         Bookmarks::Index => Some(format!("{index}")),
-                        Bookmarks::IndexName => Some(format!("{} - {}", index, path.file_name())),
+                        Bookmarks::IndexName => Some(format!("{} - {}", index, path)),
                     };
                     if let Some(txt) = bookmark_text {
                         let bookmark = lopdf::Bookmark::new(txt, [0.0, 0.0, 1.0], 0, object_id);
@@ -525,8 +522,8 @@ where
                     object_id,
                     iterated_document.get_object(object_id).unwrap().to_owned(),
                 )
-            },
-        ));
+            });
+        output_documents_pages.extend(pages_to_add);
         debug!("{output_bookmark_parent:?}");
         for (_, existing_bookmark) in iterated_document.bookmark_table {
             debug!("{existing_bookmark:?}");

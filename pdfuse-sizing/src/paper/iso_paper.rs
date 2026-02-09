@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
+use std::sync::LazyLock;
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -139,7 +139,7 @@ impl IsoPaper {
     }
 
     pub fn try_from_string(text: &str) -> Result<Self, IsoPaperError> {
-        static PAPER_SIZE_REGEX: Lazy<Regex> = Lazy::new(|| {
+        static PAPER_SIZE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
             Regex::new(r"^\s*((?<Transposed>\^\s*)?(?<Paper>[A-Za-z])\s*(?<Size>[- ]?\d+))\s*$")
                 .unwrap()
         });

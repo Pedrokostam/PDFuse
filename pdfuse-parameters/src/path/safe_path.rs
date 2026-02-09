@@ -1,5 +1,6 @@
 use core::fmt;
-use once_cell::sync::Lazy;
+#[cfg(windows)]
+use std::sync::LazyLock;
 use pdfuse_utils::{debug_t, error_t};
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
@@ -15,11 +16,11 @@ fn replace_env_var(caps: &Captures) -> String {
 }
 
 #[cfg(windows)]
-static ENV_FIND: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(%(?<name>\w+)%)").expect("Regex must not fail!"));
+static ENV_FIND: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(%(?<name>\w+)%)").expect("Regex must not fail!"));
 #[cfg(not(windows))]
-static ENV_FIND: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(\$(?<name>\w+))").expect("Regex must not fail!"));
+static ENV_FIND: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(\$(?<name>\w+))").expect("Regex must not fail!"));
 
 #[cfg(windows)]
 pub(crate) fn is_executable(path: &Path) -> bool {

@@ -7,10 +7,19 @@ fn main() {
     let _ = main_impl().map_err(|e| log::error!("{e}"));
     let _ = finish_progress_bar().map_err(|e| log::error!("{e}"));
 }
-fn main_impl() -> Result<(), ConfigError> {
-    println!("IM HERE");
+
+fn set_logger() {
     pdfuse_utils::init_logger();
-    log::set_max_level(log::LevelFilter::Trace);
+    let lvl = if cfg!(debug_assertions) {
+        log::LevelFilter::Warn
+    } else {
+        log::LevelFilter::Trace
+    };
+    log::set_max_level(lvl);
+}
+
+fn main_impl() -> Result<(), ConfigError> {
+    set_logger();
 
     let start_time_parse = std::time::Instant::now();
 
@@ -29,20 +38,6 @@ fn main_impl() -> Result<(), ConfigError> {
     let end_time_merge = std::time::Instant::now();
     let millis_merge = (end_time_merge - start_time_merge).as_secs_f64();
     info_t!("time_taken", duration_seconds = millis_merge);
-    // #[cfg(debug_assertions)]
-    // log::set_max_level(log::LevelFilter::Trace);
-    // #[cfg(not(debug_assertions))]
-    // log::set_max_level(log::LevelFilter::Trace);
-    // let start_time = std::time::Instant::now();
-    // let parameters = match pdfuse_parameters::ParametersWithPaths::parse() {
-    //     Ok(p) => p,
-    //     Err(e) => {
-    //         print!("{e}");
-    //         std::process::exit(1);
-    //     }
-    // };
-    // pdfuse_merging::load(parameters.files.to_owned(), &parameters.parameters);
-    // let end_time = std::time::Instant::now();
-    // info_t!("time_taken",duration_seconds=(end_time-start_time).as_secs_f32());
+
     Ok(())
 }

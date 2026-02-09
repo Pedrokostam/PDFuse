@@ -1,9 +1,8 @@
 use std::{
     fmt::Display,
-    ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign},
+    ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign}, sync::LazyLock,
 };
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -93,8 +92,8 @@ impl Length {
         text: &str,
         default_unit: Option<Unit>,
     ) -> Result<ParseResult, LengthParseError> {
-        static UNIT_REGEX: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r"(?i)(?<Value>[\d\.]+)\s*(?<Unit>[A-Z]+)?").unwrap());
+        static UNIT_REGEX: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r"(?i)(?<Value>[\d\.]+)\s*(?<Unit>[A-Z]+)?").unwrap());
         let captures = UNIT_REGEX
             .captures(text)
             .ok_or(LengthParseError::NoValueSpecified)?;

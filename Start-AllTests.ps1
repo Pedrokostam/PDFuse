@@ -55,7 +55,7 @@ try
                $null= $tests_failed.Add($name)
             }
          }
-      }
+      }C:\Program Files\Git\usr\bin\sh.exe
    }
    $tests_failed | Sort-Object | ForEach-Object {} { Write-host $_ -ForegroundColor Red } { Write-host '' }
    $tests_succeeded | Sort-Object| ForEach-Object { Write-host  $_  -ForegroundColor Green }
