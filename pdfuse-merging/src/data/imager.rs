@@ -9,7 +9,6 @@ use printpdf::{ImageOptimizationOptions, PdfDocument, PdfPage, RawImageData, Raw
 use printpdf::{PdfSaveOptions, PdfWarnMsg, RawImage};
 
 use crate::conditional_slow_down;
-use crate::data::document_source::DocumentSources;
 use crate::data::LoadedDocument;
 use crate::error::ImageLoadError;
 
@@ -205,15 +204,15 @@ impl Imager {
 // }
 
 fn adjust_to_dpi(image: LoadedImage, draw_area: CustomPage, dpi: f64) -> DynamicImage {
-    let horizontal_pixel_max = draw_area.horizontal.inch() * dpi;
-    let vertical_pixel_max = draw_area.vertical.inch() * dpi;
+    let horizontal_pixel_max = draw_area.horizontal.inches() * dpi;
+    let vertical_pixel_max = draw_area.vertical.inches() * dpi;
     let image_width = image.width() as f64;
     let image_height = image.height() as f64;
     let scale_x = horizontal_pixel_max / image_width;
     let scale_y = vertical_pixel_max / image_height;
     let scale = scale_x.min(scale_y);
     if scale >= 1.0 {
-        let target_dpi = (image.width() as f64 / draw_area.horizontal.inch()) as u32;
+        let target_dpi = (image.width() as f64 / draw_area.horizontal.inches()) as u32;
         debug_t!("debug.excess_dpi", dpi = target_dpi);
         return image.into();
     }

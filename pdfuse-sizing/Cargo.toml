@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 printpdf = {workspace = true}
 thiserror.workspace=true
+derive_more.workspace=true
 regex = "1.12.3"
 serde.workspace=true
 

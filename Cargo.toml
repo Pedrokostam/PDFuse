@@ -22,6 +22,16 @@ regex = "1.12.3"
 anyhow = "1.0.101"
 tabled = "0.20.0"
 thiserror = "2.0.18"
+derive_more = {version =  "2.1.1", features = [
+   "add",
+   "add_assign",
+   "display",
+   "eq",
+   "mul",
+   "not",
+   "from_str",
+   "mul_assign"
+] }
 printpdf = { version = "0.8.2", features = [
     "bmp",
     "gif",

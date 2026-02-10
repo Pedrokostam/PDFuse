@@ -27,8 +27,9 @@ pub(crate) const C_LENGTHS: &[f64] = &[
 
 pub const MAX_ISO_SIZE: i8 = (A_LENGTHS.len()-1) as i8;
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy,Default)]
 pub enum IsoPaperType {
+    #[default]
     A,
     B,
     C,
@@ -54,18 +55,6 @@ pub struct IsoPaper {
     short: Length,
     long: Length,
 }
-impl TryFrom<String> for IsoPaper {
-    type Error = IsoPaperError;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::try_from_string(&value)
-    }
-}
-impl From<IsoPaper> for String {
-    fn from(value: IsoPaper) -> Self {
-        value.to_string()
-    }
-}
 
 impl IsoPaper {
     pub fn paper_type(&self) -> &IsoPaperType {
@@ -83,7 +72,6 @@ impl IsoPaper {
     pub fn long(&self) -> &Length {
         &self.long
     }
-
     pub fn iso_name(&self) -> String {
         format!(
             "{transposed}{typ}{size}",
@@ -92,7 +80,6 @@ impl IsoPaper {
             transposed = if self.is_transposed { "^" } else { "" }
         )
     }
-
     pub fn a(size: i8) -> IsoPaper {
         Self::new(IsoPaperType::A, size, false)
     }
@@ -111,7 +98,6 @@ impl IsoPaper {
     pub fn c_transposed(size: i8) -> IsoPaper {
         Self::new(IsoPaperType::C, size, true)
     }
-
     pub fn new(paper_type: IsoPaperType, paper_size: i8, is_transposed: bool) -> Self {
         assert!(
             paper_size >= 0 && (paper_size as usize) < A_LENGTHS.len() - 1,
@@ -152,14 +138,13 @@ impl IsoPaper {
 
         let paper_size = size_str.as_str().parse::<i64>()?;
         if paper_size < 0 || (paper_size as usize) > A_LENGTHS.len() - 1 {
-            return Err(IsoPaperError::InvalidSize(paper_size));
+            return Err(IsoPaperError::invalid_size(paper_size));
         }
 
         let paper_str = captures
             .name("Paper")
-            .ok_or(IsoPaperError::NoTypeSpecied)?
+            .ok_or(IsoPaperError::no_type_specified(text))?
             .as_str();
-
         let paper_type = match paper_str {
             "A" | "a" => Ok(IsoPaperType::A),
             "B" | "b" => Ok(IsoPaperType::B),
@@ -170,12 +155,31 @@ impl IsoPaper {
         Ok(IsoPaper::new(paper_type, paper_size as i8, is_transposed))
     }
 }
+
 impl Display for IsoPaper {
+
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.pad(&self.iso_name())
     }
 }
+
+impl TryFrom<String> for IsoPaper {
+
+    type Error = IsoPaperError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from_string(&value)
+    }
+}
+
+impl From<IsoPaper> for String {
+    fn from(value: IsoPaper) -> Self {
+        value.to_string()
+    }
+}
+
 impl TransposableSize for IsoPaper {
+
     fn transposed(&self) -> Self {
         IsoPaper {
             is_transposed: !self.is_transposed,
@@ -187,7 +191,9 @@ impl TransposableSize for IsoPaper {
         self.is_transposed = !self.is_transposed;
     }
 }
+
 impl Size for IsoPaper {
+
     fn horizontal(&self) -> Length {
         if !self.is_transposed {
             self.short
@@ -215,6 +221,7 @@ impl Size for IsoPaper {
         self.to_custom_size().fit_size(other_size)
     }
 }
+
 impl Default for IsoPaper {
     /// The most common size - A4.
     fn default() -> Self {

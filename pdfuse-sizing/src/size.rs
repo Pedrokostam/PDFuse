@@ -12,6 +12,7 @@ pub trait Size: Display {
     /// Returns the scale. If the other size is multiplied by it, it will fit in the checking size. Scaling is uniform.
     fn fit_size(&self, other_size: &CustomPage) -> f64;
 }
+
 pub trait TransposableSize: Size {
     fn transposed(&self) -> Self;
     fn transpose(&mut self);

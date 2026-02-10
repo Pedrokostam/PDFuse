@@ -1,7 +1,12 @@
+use std::str::FromStr;
+
+use derive_more::{Display};
+
 use crate::error::UnitParseError;
 
 
 #[derive(Debug, PartialEq, Clone, Copy,Eq)]
+#[derive(Display)]
 pub enum Unit {
     Meter,
     Millimeter,
@@ -9,6 +14,15 @@ pub enum Unit {
     Point,
     Centimeter,
 }
+
+impl FromStr for Unit{
+    type Err=UnitParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Unit::try_from_string(s)
+    }
+}
+
 impl TryFrom<&str> for Unit{
     type Error=UnitParseError;
 
@@ -30,6 +44,7 @@ impl Default for Unit{
         Unit::DEFAULT_UNIT
     }
 }
+
 impl Default for &Unit{
     fn default() -> Self {
         &Unit::DEFAULT_UNIT
@@ -37,6 +52,7 @@ impl Default for &Unit{
 }
 
 impl Unit {
+    pub const DEFAULT_UNIT: Unit = Unit::Centimeter;
     pub fn unit_symbol(&self) -> &str {
         match self {
             Unit::Meter => "m",
@@ -46,7 +62,6 @@ impl Unit {
             Unit::Centimeter => "cm",
         }
     }
-    pub const DEFAULT_UNIT: Unit = Unit::Centimeter;
     fn try_from_string_impl(text: &str) -> Result<Self, UnitParseError> {
         let swap = text.replace("tre", "ter");
         match swap.as_str() {
@@ -65,16 +80,22 @@ impl Unit {
     }
     /// mm / m
     const MM_OVER_M: f64 = 1000.0;
+
     /// cm / m
     const CM_OVER_M: f64 = 100.0;
+
     /// in / m
     const IN_OVER_M: f64 = 39.37;
+
     /// mm / cm
     const MM_OVER_CM: f64 = 10.0;
+
     /// cm / in
     const CM_OVER_IN: f64 = 2.54;
+
     /// mm / in
     const MM_OVER_IN: f64 = 25.4;
+
     /// pt / in
     const PT_OVER_IN: f64 = 72.0;
 
@@ -123,11 +144,6 @@ impl Unit {
             (Unit::Meter, Unit::Centimeter) => safe * Self::CM_OVER_M,
         };
         conv.round() / safe_margin
-    }
-}
-impl std::fmt::Display for Unit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
     }
 }
 

@@ -1,8 +1,10 @@
 use std::{
     fmt::Display,
-    ops::{Add, Div, Mul, Neg, Sub}, sync::LazyLock,
+    ops::Neg,
+    sync::LazyLock,
 };
 
+use derive_more::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -12,7 +14,8 @@ use crate::{
     Length, Size, TransposableSize, Unit,
 };
 
-#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
+#[derive(Sub,Add,Neg,Mul,Div,AddAssign,SubAssign,MulAssign,DivAssign)]
 #[serde(try_from = "String")]
 #[serde(into = "String")]
 pub struct CustomPage {
@@ -20,145 +23,34 @@ pub struct CustomPage {
     pub vertical: Length,
 }
 
-impl<T> Div<T> for CustomPage
-where
-    T: Copy + Into<f64>,
-{
-    type Output = CustomPage;
-
-    fn div(self, rhs: T) -> Self::Output {
-        CustomPage {
-            horizontal: self.horizontal / rhs.into(),
-            vertical: self.vertical / rhs.into(),
-        }
-    }
-}
-
-impl Default for CustomPage {
-    fn default() -> Self {
-        Self {
-            horizontal: Length::zero(),
-            vertical: Length::zero(),
-        }
-    }
-}
-
-impl TryFrom<&str> for CustomPage {
-    type Error = LengthParseError;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::try_from_string(value)
-    }
-}
-
-impl TryFrom<String> for CustomPage {
-    type Error = LengthParseError;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::try_from_string(&value)
-    }
-}
-
-impl From<CustomPage> for String {
-    fn from(value: CustomPage) -> Self {
-        value.to_string()
-    }
-}
-
-impl<T> Mul<T> for CustomPage
-where
-    T: Copy + Into<f64>,
-{
-    type Output = CustomPage;
-
-    fn mul(self, rhs: T) -> Self::Output {
-        CustomPage {
-            horizontal: self.horizontal * rhs.into(),
-            vertical: self.vertical * rhs.into(),
-        }
-    }
-}
-
-impl Display for CustomPage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let msg = match f.precision() {
-            None => format!("{x} x {y}", x = self.horizontal(), y = self.vertical()),
-            Some(prec) => format!(
-                "{x:.prec$} x {y:.prec$}",
-                x = self.horizontal(),
-                y = self.vertical(),
-                prec = prec
-            ),
-        };
-        f.pad(&msg)
-    }
-}
-
-impl Add<Self> for CustomPage {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        CustomPage {
-            horizontal: self.horizontal + rhs.horizontal,
-            vertical: self.vertical + rhs.vertical,
-        }
-    }
-}
-
-impl Neg for CustomPage {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        CustomPage {
-            horizontal: -self.horizontal,
-            vertical: -self.vertical,
-        }
-    }
-}
-
-impl Sub<Self> for CustomPage {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        self + (-rhs)
-    }
-}
-
-impl TransposableSize for CustomPage {
-    fn transposed(&self) -> Self {
-        CustomPage {
-            horizontal: self.vertical,
-            vertical: self.horizontal,
-        }
-    }
-
-    fn transpose(&mut self) {
-        std::mem::swap(&mut self.vertical, &mut self.horizontal);
-    }
-}
-
-impl Size for CustomPage {
-    fn to_custom_size(&self) -> CustomPage {
-        *self
-    }
-
-    fn horizontal(&self) -> Length {
-        self.horizontal
-    }
-
-    fn vertical(&self) -> Length {
-        self.vertical
-    }
-
-    fn fit_size(&self, other_size: &CustomPage) -> f64 {
-        let x = self.horizontal() / other_size.horizontal();
-        let y = self.vertical() / other_size.vertical();
-        x.min(y)
-    }
-}
+// impl<T> Div<T> for CustomPage
+// where
+//     T: Copy + Into<f64>,
+// {
+//     type Output = CustomPage;
+//
+//     fn div(self, rhs: T) -> Self::Output {
+//         CustomPage {
+//             horizontal: self.horizontal / rhs.into(),
+//             vertical: self.vertical / rhs.into(),
+//         }
+//     }
+// }
+//
+// impl<T> Mul<T> for CustomPage where  T: Copy + Into<f64>,
+// {
+//     type Output = CustomPage;
+//
+//     fn mul(self, rhs: T) -> Self::Output {
+//         CustomPage {
+//             horizontal: self.horizontal * rhs.into(),
+//             vertical: self.vertical * rhs.into(),
+//         }
+//     }
+// }
 
 impl CustomPage {
-    pub fn zero() -> Self {
+   pub fn zero() -> Self {
         CustomPage {
             horizontal: Length::zero(),
             vertical: Length::zero(),
@@ -251,11 +143,82 @@ impl CustomPage {
     }
 }
 
+impl Display for CustomPage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let msg = match f.precision() {
+            None => format!("{x} x {y}", x = self.horizontal(), y = self.vertical()),
+            Some(prec) => format!(
+                "{x:.prec$} x {y:.prec$}",
+                x = self.horizontal(),
+                y = self.vertical(),
+                prec = prec
+            ),
+        };
+        f.pad(&msg)
+    }
+}
+
+impl TransposableSize for CustomPage {
+    fn transposed(&self) -> Self {
+        CustomPage {
+            horizontal: self.vertical,
+            vertical: self.horizontal,
+        }
+    }
+
+    fn transpose(&mut self) {
+        std::mem::swap(&mut self.vertical, &mut self.horizontal);
+    }
+}
+
+impl Size for CustomPage {
+    fn to_custom_size(&self) -> CustomPage {
+        *self
+    }
+
+    fn horizontal(&self) -> Length {
+        self.horizontal
+    }
+
+    fn vertical(&self) -> Length {
+        self.vertical
+    }
+
+    fn fit_size(&self, other_size: &CustomPage) -> f64 {
+        let x = self.horizontal() / other_size.horizontal();
+        let y = self.vertical() / other_size.vertical();
+        x.min(y)
+    }
+}
+
+impl TryFrom<&str> for CustomPage {
+    type Error = LengthParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::try_from_string(value)
+    }
+}
+
+impl TryFrom<String> for CustomPage {
+    type Error = LengthParseError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from_string(&value)
+    }
+}
+
+impl From<CustomPage> for String {
+    fn from(value: CustomPage) -> Self {
+        value.to_string()
+    }
+}
+
 impl From<IsoPaper> for CustomPage {
     fn from(value: IsoPaper) -> Self {
         value.to_custom_size()
     }
 }
+
 impl From<UsPaper> for CustomPage {
     fn from(value: UsPaper) -> Self {
         value.to_custom_size()

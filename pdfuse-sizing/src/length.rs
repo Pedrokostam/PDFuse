@@ -1,8 +1,11 @@
 use std::{
     fmt::Display,
-    ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign}, sync::LazyLock,
+    ops::{Div, Neg},
+    str::FromStr,
+    sync::LazyLock,
 };
 
+use derive_more::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +13,24 @@ use crate::error::{LengthParseError, UnitParseError};
 
 use super::{parsing::ParseResult, unit::Unit};
 
-#[derive(Debug, PartialEq, Clone, Copy, PartialOrd, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    PartialEq,
+    Clone,
+    Copy,
+    PartialOrd,
+    Serialize,
+    Deserialize,
+    Default,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    AddAssign,
+    SubAssign,
+    MulAssign,
+    DivAssign,
+)]
 #[serde(try_from = "String")]
 #[serde(into = "String")]
 pub struct Length {
@@ -31,6 +51,14 @@ impl TryFrom<&str> for Length {
     }
 }
 
+impl FromStr for Length {
+    type Err = LengthParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from_string(s)
+    }
+}
+
 impl TryFrom<String> for Length {
     type Error = LengthParseError;
 
@@ -40,48 +68,50 @@ impl TryFrom<String> for Length {
 }
 
 impl Length {
+    /// All lengths store their values in `BASE_UNIT` under the hood.
     pub const BASE_UNIT: Unit = Unit::Millimeter;
     pub fn zero() -> Self {
         Length { base_value: 0.0 }
     }
-    fn change_to_base(value: f64, from: Unit) -> f64 {
-        Unit::change_unit(value, from, Self::BASE_UNIT)
-    }
     pub fn from_unit(value: impl Into<f64>, unit: Unit) -> Self {
-        Length {
-            base_value: Self::change_to_base(value.into(), unit),
-        }
+        let base_value = Unit::change_unit(value.into(), unit, Self::BASE_UNIT);
+        Length { base_value }
     }
     pub fn as_unit_str(&self, unit: Unit) -> String {
-        format!("{} {}", self.as_unit(unit), unit.unit_symbol())
+        format!("{:.2} {}", self.as_unit(unit), unit.unit_symbol())
     }
     pub fn as_unit(&self, unit: Unit) -> f64 {
         Unit::change_unit(self.base_value, Unit::Millimeter, unit)
     }
-    pub fn m(&self) -> f64 {
+    pub fn meters(&self) -> f64 {
         self.as_unit(Unit::Meter)
     }
+    /// Create new length from meters.
     pub fn from_meters(meters: impl Into<f64>) -> Self {
         Self::from_unit(meters, Unit::Meter)
     }
-    pub fn mm(&self) -> f64 {
+    pub fn millimeters(&self) -> f64 {
         self.as_unit(Unit::Millimeter)
     }
+    /// Create new length from millimeters.
     pub fn from_millimeters(millimeters: impl Into<f64>) -> Self {
         Self::from_unit(millimeters, Unit::Millimeter)
     }
-    pub fn from_centimeters(millimeters: impl Into<f64>) -> Self {
-        Self::from_unit(millimeters, Unit::Centimeter)
+    /// Create new length from centimeters.
+    pub fn from_centimeters(centimeters: impl Into<f64>) -> Self {
+        Self::from_unit(centimeters, Unit::Centimeter)
     }
-    pub fn inch(&self) -> f64 {
+    pub fn inches(&self) -> f64 {
         self.as_unit(Unit::Inch)
     }
+    /// Create new length from inches.
     pub fn from_inches(inches: impl Into<f64>) -> Self {
         Self::from_unit(inches, Unit::Inch)
     }
-    pub fn pt(&self) -> f64 {
+    pub fn points(&self) -> f64 {
         self.as_unit(Unit::Point)
     }
+    /// Create new length from points.
     pub fn from_points(points: impl Into<f64>) -> Self {
         Self::from_unit(points, Unit::Point)
     }
@@ -96,12 +126,12 @@ impl Length {
             LazyLock::new(|| Regex::new(r"(?i)(?<Value>[\d\.]+)\s*(?<Unit>[A-Z]+)?").unwrap());
         let captures = UNIT_REGEX
             .captures(text)
-            .ok_or(LengthParseError::NoValueSpecified)?;
+            .ok_or_else(|| LengthParseError::NoValueSpecified(text.into()))?;
         let value_capt = captures
             .name("Value")
-            .ok_or(LengthParseError::NoValueSpecified)?;
+            .ok_or_else(|| LengthParseError::NoValueSpecified(text.into()))?;
         let Ok(value) = value_capt.as_str().parse::<f64>() else {
-            return Err(LengthParseError::NoValueSpecified);
+            return Err(LengthParseError::NoValueSpecified(text.into()));
         };
         let end_position = captures.get(0).unwrap().range().end;
 
@@ -143,57 +173,12 @@ impl Length {
     }
 }
 
-impl Add<Self> for Length {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Length {
-            base_value: self.base_value + rhs.base_value,
-        }
-    }
-}
-
-impl AddAssign<Self> for Length {
-    fn add_assign(&mut self, rhs: Self) {
-        self.base_value += rhs.base_value;
-    }
-}
-
 impl Neg for Length {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
         Length {
             base_value: -self.base_value,
-        }
-    }
-}
-
-impl Sub<Self> for Length {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Length {
-            base_value: self.base_value - rhs.base_value,
-        }
-    }
-}
-
-impl SubAssign<Self> for Length {
-    fn sub_assign(&mut self, rhs: Self) {
-        self.base_value -= rhs.base_value;
-    }
-}
-
-impl<T> Div<T> for Length
-where
-    T: Copy + Into<f64>,
-{
-    type Output = Self;
-
-    fn div(self, rhs: T) -> Self::Output {
-        Length {
-            base_value: self.base_value / rhs.into(),
         }
     }
 }
@@ -206,25 +191,12 @@ impl Div<Self> for Length {
     }
 }
 
-impl<T> Mul<T> for Length
-where
-    T: Copy + Into<f64>,
-{
-    type Output = Self;
-
-    fn mul(self, rhs: T) -> Self::Output {
-        Length {
-            base_value: self.base_value * rhs.into(),
-        }
-    }
-}
-
 impl Display for Length {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{value} {unit:.2}",
-            value = self.mm(),
+            value = self.millimeters(),
             unit = Unit::Millimeter.unit_symbol()
         )
     }
@@ -232,13 +204,13 @@ impl Display for Length {
 
 impl From<Length> for printpdf::units::Mm {
     fn from(val: Length) -> Self {
-        printpdf::units::Mm(val.mm() as f32)
+        printpdf::units::Mm(val.millimeters() as f32)
     }
 }
 
 impl From<Length> for printpdf::units::Pt {
     fn from(val: Length) -> Self {
-        printpdf::units::Pt(val.pt() as f32)
+        printpdf::units::Pt(val.points() as f32)
     }
 }
 
@@ -247,7 +219,7 @@ mod tests {
     #![allow(clippy::expect_fun_call)]
     use super::*;
     #[test]
-    fn meter_comparisons () {
+    fn meter_comparisons() {
         let equivs = vec![
             (Length::from_inches(1.0), Length::from_centimeters(2.54)),
             (Length::from_inches(10.0), Length::from_centimeters(25.4)),
@@ -258,7 +230,7 @@ mod tests {
             (Length::from_meters(10.0), Length::from_points(28346.5)),
         ];
         for (a, b) in equivs {
-            assert_eq!(a.m(), b.m(), "{a} equals {b}");
+            assert_eq!(a.meters(), b.meters(), "{a} equals {b}");
         }
     }
     #[test]

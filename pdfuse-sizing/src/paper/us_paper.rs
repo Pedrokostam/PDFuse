@@ -1,12 +1,13 @@
-use std::fmt::Display;
+use std::str::FromStr;
 
+use derive_more::{Display};
 use serde::{Deserialize, Serialize};
 
 use super::CustomPage;
 use crate::error::UsPaperError;
 use crate::{Length, Size};
 
-#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Display)]
 #[serde(try_from = "String")]
 #[serde(into = "String")]
 pub enum UsPaper {
@@ -15,6 +16,22 @@ pub enum UsPaper {
     Tabloid,
     Ledger,
     Executive,
+}
+
+impl FromStr for UsPaper {
+    type Err = UsPaperError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from_string(s)
+    }
+}
+
+impl TryFrom<&str> for UsPaper {
+    type Error = UsPaperError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::try_from_string(value)
+    }
 }
 
 impl TryFrom<String> for UsPaper {
@@ -28,19 +45,6 @@ impl TryFrom<String> for UsPaper {
 impl From<UsPaper> for String {
     fn from(value: UsPaper) -> Self {
         value.to_string()
-    }
-}
-
-impl Display for UsPaper {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let txt = match self {
-            UsPaper::Letter => "Letter",
-            UsPaper::Ledger => "Ledger",
-            UsPaper::Tabloid => "Tabloid",
-            UsPaper::Legal => "Legal",
-            UsPaper::Executive => "Executive",
-        };
-        f.pad(txt)
     }
 }
 
@@ -96,7 +100,13 @@ mod tests {
     }
     #[test]
     fn parsing() {
-        let txts = vec!["  lEtTeR ", " lEgAl ", "  TaBlOiD  ", " lEdGeR  ", " eXeCuTiVe "];
+        let txts = vec![
+            "  lEtTeR ",
+            " lEgAl ",
+            "  TaBlOiD  ",
+            " lEdGeR  ",
+            " eXeCuTiVe ",
+        ];
         for t in txts {
             assert!(UsPaper::try_from_string(t).is_ok());
             assert!(UsPaper::try_from_string(&t.to_ascii_uppercase()).is_ok());

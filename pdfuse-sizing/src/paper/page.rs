@@ -2,11 +2,12 @@ use crate::error::{IsoPaperError, PageSizeError};
 use crate::paper::iso_paper::IsoPaperType;
 use crate::paper::{CustomPage, IsoPaper, UsPaper, MAX_ISO_SIZE};
 use crate::{Length, Size, TransposableSize};
+use derive_more::Display;
 use serde::{Deserialize, Serialize};
 use std::convert::From;
-use std::fmt::Display;
 
 #[derive(Debug, PartialEq, Clone, Copy, Deserialize, Serialize)]
+#[derive(Display)]
 #[serde(try_from = "String")]
 #[serde(into = "String")]
 pub enum Page {
@@ -14,40 +15,8 @@ pub enum Page {
     American(UsPaper),
     Custom(CustomPage),
 }
-impl TryFrom<&str> for Page {
-    type Error = PageSizeError;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::try_from_string(value)
-    }
-}
-impl TryFrom<String> for Page {
-    type Error = PageSizeError;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::try_from_string(&value)
-    }
-}
-impl From<Page> for String {
-    fn from(value: Page) -> Self {
-        value.to_string()
-    }
-}
-impl From<IsoPaper> for Page {
-    fn from(value: IsoPaper) -> Self {
-        Page::Standard(value)
-    }
-}
-impl From<CustomPage> for Page {
-    fn from(value: CustomPage) -> Self {
-        Page::Custom(value)
-    }
-}
-impl From<UsPaper> for Page {
-    fn from(value: UsPaper) -> Self {
-        Page::American(value)
-    }
-}
 impl Page {
     pub fn try_from_string(text: &str) -> Result<Self, PageSizeError> {
         let trimmed = text.trim();
@@ -103,15 +72,7 @@ impl Page {
         matches!(self, Page::Custom(_))
     }
 }
-impl Display for Page {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Page::Standard(iso_paper) => iso_paper.fmt(f),
-            Page::Custom(custom_size) => custom_size.fmt(f),
-            Page::American(us_paper) => us_paper.fmt(f),
-        }
-    }
-}
+
 impl TransposableSize for Page {
     fn transposed(&self) -> Self {
         match self {
@@ -129,6 +90,7 @@ impl TransposableSize for Page {
         }
     }
 }
+
 impl Size for Page {
     fn to_custom_size(&self) -> CustomPage {
         match self {
@@ -158,10 +120,51 @@ impl Size for Page {
         self.to_custom_size().fit_size(other_size)
     }
 }
+
 impl Default for Page {
     /// Standard ISO paper size - A4.
     fn default() -> Self {
         Page::Standard(IsoPaper::default())
+    }
+}
+
+impl TryFrom<&str> for Page {
+    type Error = PageSizeError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::try_from_string(value)
+    }
+}
+
+impl TryFrom<String> for Page {
+    type Error = PageSizeError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from_string(&value)
+    }
+}
+
+impl From<Page> for String {
+    fn from(value: Page) -> Self {
+        value.to_string()
+    }
+}
+
+impl From<IsoPaper> for Page {
+    fn from(value: IsoPaper) -> Self {
+        Page::Standard(value)
+    }
+}
+
+impl From<CustomPage> for Page {
+    fn from(value: CustomPage) -> Self {
+        Page::Custom(value)
+    }
+}
+
+impl From<UsPaper> for Page {
+    fn from(value: UsPaper) -> Self {
+        Page::American(value)
     }
 }
 
