@@ -1,36 +1,18 @@
 use std::fmt::Display;
 
 use pdfuse_utils::write_t;
-
+use thiserror::Error;
 use crate::path::SafePath;
 
-#[derive(Debug)]
+#[derive(Debug,Error)]
 pub enum ConfigError {
-    Io(std::io::Error),
-    Deserialization(toml::de::Error),
-    Serialization(toml::ser::Error),
+    Io(#[from]std::io::Error),
+    Deserialization(#[from]toml::de::Error),
+    Serialization(#[from]toml::ser::Error),
     NoValidFiles,
     MalformedPath(SafePath),
     MissingConfigError(SafePath),
     WhatIfMode,
-}
-
-impl From<std::io::Error> for ConfigError {
-    fn from(value: std::io::Error) -> Self {
-        ConfigError::Io(value)
-    }
-}
-
-impl From<toml::de::Error> for ConfigError {
-    fn from(value: toml::de::Error) -> Self {
-        ConfigError::Deserialization(value)
-    }
-}
-
-impl From<toml::ser::Error> for ConfigError {
-    fn from(value: toml::ser::Error) -> Self {
-        ConfigError::Serialization(value)
-    }
 }
 
 impl Display for ConfigError {

@@ -96,6 +96,7 @@ pub(crate) fn check_libre(paths: &[SafePath]) -> Option<SafePath> {
     }
     None
 }
+
 fn get_unique_name() -> String {
     let now = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
     format!(

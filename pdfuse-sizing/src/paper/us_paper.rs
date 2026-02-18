@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use derive_more::{Display};
+use derive_more::Display;
 use serde::{Deserialize, Serialize};
 
 use super::CustomPage;
@@ -87,6 +87,7 @@ impl Size for UsPaper {
         self.to_custom_size().fit_size(other_size)
     }
 }
+
 #[cfg(test)]
 mod tests {
 
@@ -108,9 +109,15 @@ mod tests {
             " eXeCuTiVe ",
         ];
         for t in txts {
-            assert!(UsPaper::try_from_string(t).is_ok());
-            assert!(UsPaper::try_from_string(&t.to_ascii_uppercase()).is_ok());
-            assert!(UsPaper::try_from_string(&t.to_ascii_lowercase()).is_ok());
+            assert!(UsPaper::try_from_string(t).is_ok(), "{t}");
+            assert!(
+                UsPaper::try_from_string(&t.to_ascii_uppercase()).is_ok(),
+                "{t} uppercase"
+            );
+            assert!(
+                UsPaper::try_from_string(&t.to_ascii_lowercase()).is_ok(),
+                "{t} lowercase"
+            );
         }
     }
 

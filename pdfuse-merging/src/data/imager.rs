@@ -1,6 +1,6 @@
 use image::{imageops::FilterType, DynamicImage};
 use lopdf::Document;
-use pdfuse_parameters::path::SafePath;
+use pdfuse_parameters::path::{SafePath, SourcePath};
 use pdfuse_sizing::paper::CustomPage;
 use pdfuse_sizing::{Length, Size};
 use pdfuse_utils::debug_t;
@@ -9,6 +9,7 @@ use printpdf::{ImageOptimizationOptions, PdfDocument, PdfPage, RawImageData, Raw
 use printpdf::{PdfSaveOptions, PdfWarnMsg, RawImage};
 
 use crate::conditional_slow_down;
+use crate::data::document_source::DocumentSources;
 use crate::data::LoadedDocument;
 use crate::error::ImageLoadError;
 
@@ -62,7 +63,7 @@ pub struct Imager {
     pub(crate) pages: Vec<PdfPage>,
     pub(crate) quality: u8,
     pub(crate) lossless: bool,
-    page_paths: Vec<SafePath>,
+    page_paths: Vec<SourcePath>,
 }
 impl Imager {
     fn get_options(&self) -> PdfSaveOptions {
@@ -104,7 +105,8 @@ impl Imager {
             page_paths: vec![],
         };
         let closed = closable.close_and_into_document();
-        LoadedDocument::from_document_like(page_paths.into(), Box::new(closed))
+        let doc_sources = DocumentSources::new_multi(page_paths);
+        LoadedDocument::from_document_like(doc_sources, Box::new(closed))
 
         // let opt = get_options();
     }
@@ -166,7 +168,7 @@ impl Imager {
 
         let image_size = get_image_size(&adjusted_image, self.dpi);
 
-        let pdf_image = dynamic_to_pdf(adjusted_image, image_path.clone())?;
+        let pdf_image = dynamic_to_pdf(adjusted_image, image_path.clone().into())?;
 
         let image_id = self.document.add_image(&pdf_image);
         let scale = page_with_margins.fit_size(&image_size);
@@ -194,20 +196,13 @@ impl Imager {
     }
 }
 
-// impl From<Imager> for LoadedDocument {
-//     fn from(value: Imager) -> Self {
-//         LoadedDocument::from_document_like(
-//             DocumentSources::Multiple(value.page_paths.clone()),
-//             Box::new(value.close_and_into_document()),
-//         )
-//     }
-// }
-
 fn adjust_to_dpi(image: LoadedImage, draw_area: CustomPage, dpi: f64) -> DynamicImage {
     let horizontal_pixel_max = draw_area.horizontal.inches() * dpi;
     let vertical_pixel_max = draw_area.vertical.inches() * dpi;
+
     let image_width = image.width() as f64;
     let image_height = image.height() as f64;
+
     let scale_x = horizontal_pixel_max / image_width;
     let scale_y = vertical_pixel_max / image_height;
     let scale = scale_x.min(scale_y);
@@ -216,10 +211,12 @@ fn adjust_to_dpi(image: LoadedImage, draw_area: CustomPage, dpi: f64) -> Dynamic
         debug_t!("debug.excess_dpi", dpi = target_dpi);
         return image.into();
     }
-    let (dynamic_image, safe_path): (DynamicImage, SafePath) = image.deconstruct();
+
+    let (dynamic_image, source_path): (DynamicImage, SourcePath) = image.deconstruct();
+
     debug_t!(
         "debug.resizing_image",
-        name = safe_path.file_name(),
+        name = source_path.file_name(),
         width = dynamic_image.width(),
         height = dynamic_image.height(),
         target_width = horizontal_pixel_max as u32,

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 
 
-#[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize, PartialEq, Eq,derive_more::Display)]
 pub enum LogLevel {
     /// Log nothing.
     Off,
@@ -24,10 +24,5 @@ impl From<LogLevel> for LevelFilter {
             LogLevel::Warn => LevelFilter::Warn,
             LogLevel::Debug => LevelFilter::Trace,
         }
-    }
-}
-impl std::fmt::Display for LogLevel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
     }
 }

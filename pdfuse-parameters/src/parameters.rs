@@ -33,31 +33,6 @@ pub struct ParametersWithPaths {
 unsafe impl Send for ParametersWithPaths {}
 
 impl ParametersWithPaths {
-    // pub fn new(args: Args) -> Self {
-    //     let libreoffice_path = check_libre(&args.libreoffice_path);
-    //     let output_file = get_output_path(&args);
-    //     let files = file_finder::get_files(
-    //         &args.files,
-    //         args.recursion_limit,
-    //         libreoffice_path.is_some(),
-    //         args.alphabetic_file_sorting,
-    //     );
-    //     let parameters = Parameters {
-    //         confirm_exit: args.confirm_exit,
-    //         what_if: args.what_if,
-    //         recursion_limit: args.recursion_limit,
-    //         image_page_fallback_size: args.image_page_fallback_size,
-    //         image_dpi: args.dpi,
-    //         image_quality: args.quality,
-    //         image_lossless_compression: args.lossless,
-    //         margin: args.margin,
-    //         force_image_page_fallback_size: args.force_image_page_fallback_size,
-    //         alphabetic_file_sorting: args.alphabetic_file_sorting,
-    //         libreoffice_path,
-    //         output_file,
-    //     };
-    //     ParametersWithPaths { files, parameters }
-    // }
     pub fn deconstruct(self) -> (Vec<Indexed<SourcePath>>, Parameters) {
         (self.files, self.parameters)
     }

@@ -16,6 +16,7 @@ where
         write!(f, "Index: {}, Value: {}", self.index, self.value)
     }
 }
+
 impl<T> Clone for Indexed<T>
 where
     T: Clone,

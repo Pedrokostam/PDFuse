@@ -25,9 +25,9 @@ pub(crate) const C_LENGTHS: &[f64] = &[
     10.0,
 ];
 
-pub const MAX_ISO_SIZE: i8 = (A_LENGTHS.len()-1) as i8;
+pub const MAX_ISO_SIZE: i8 = (A_LENGTHS.len() - 1) as i8;
 
-#[derive(Debug, PartialEq, Clone, Copy,Default)]
+#[derive(Debug, PartialEq, Clone, Copy, Default)]
 pub enum IsoPaperType {
     #[default]
     A,
@@ -157,14 +157,12 @@ impl IsoPaper {
 }
 
 impl Display for IsoPaper {
-
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.pad(&self.iso_name())
     }
 }
 
 impl TryFrom<String> for IsoPaper {
-
     type Error = IsoPaperError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
@@ -179,7 +177,6 @@ impl From<IsoPaper> for String {
 }
 
 impl TransposableSize for IsoPaper {
-
     fn transposed(&self) -> Self {
         IsoPaper {
             is_transposed: !self.is_transposed,
@@ -193,7 +190,6 @@ impl TransposableSize for IsoPaper {
 }
 
 impl Size for IsoPaper {
-
     fn horizontal(&self) -> Length {
         if !self.is_transposed {
             self.short
@@ -225,7 +221,7 @@ impl Size for IsoPaper {
 impl Default for IsoPaper {
     /// The most common size - A4.
     fn default() -> Self {
-        Self::new(IsoPaperType::A, 4, false)
+        Self::a(4)
     }
 }
 

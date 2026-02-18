@@ -60,32 +60,11 @@ fn is_valid_source(entry: &DirEntry, extensions: &[&str]) -> bool {
     match entry.path().extension() {
         None => false,
         Some(ext) => {
-            let ext = ext.to_string_lossy().to_lowercase(); // Convert to lowercase
+            let ext = ext.to_string_lossy();
             extensions.iter().any(|&e| e.eq_ignore_ascii_case(&ext))
         }
     }
 }
-
-// #[derive(Clone, PartialEq, Debug, Eq, PartialOrd, Ord)]
-// pub struct IndexedSourcePath {
-//     pub index: usize,
-//     pub source: SourcePath,
-// }
-
-// unsafe impl Send for IndexedSourcePath {}
-// impl Display for IndexedSourcePath {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "{}", self.source)
-//     }
-// }
-// impl From<(usize, SourcePath)> for IndexedSourcePath {
-//     fn from(value: (usize, SourcePath)) -> Self {
-//         IndexedSourcePath {
-//             index: value.0,
-//             source: value.1,
-//         }
-//     }
-// }
 
 /// Recursively iterates over a directory up to a specified depth
 fn recurse_folder(
@@ -114,6 +93,15 @@ fn recurse_folder(
         });
     output.extend(enumerable);
 }
+
+/// Given a set of paths, goes through each recursively, matching document formats.
+///
+/// PDFs and images are always included in search. Documents formats' inclusion depends on
+/// `allow_office_docs`.
+///
+/// It will only go until reaching `max_depth` (where 0 is only the specified paths).
+///
+/// Optionally, the resulting file paths may be sorted alphabetically.
 pub fn get_files(
     paths: &[SafePath],
     max_depth: usize,

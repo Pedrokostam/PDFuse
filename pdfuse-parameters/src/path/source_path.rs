@@ -2,6 +2,7 @@ use clap::builder::OsStr;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fmt::Display;
+use std::ops::Deref;
 use std::path::Path;
 use walkdir::DirEntry;
 
@@ -22,19 +23,21 @@ impl PartialOrd for SourcePath {
     }
 }
 
+impl Deref for SourcePath{
+    type Target = SafePath;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            SourcePath::Image(p) | SourcePath::LibreDocument(p) | SourcePath::Pdf(p) => p,
+        }
+    }
+}
+
 impl Ord for SourcePath {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let this = match self {
-            SourcePath::Image(path_buf) => path_buf,
-            SourcePath::Pdf(path_buf) => path_buf,
-            SourcePath::LibreDocument(path_buf) => path_buf,
-        };
-        let that = match other {
-            SourcePath::Image(path_buf) => path_buf,
-            SourcePath::Pdf(path_buf) => path_buf,
-            SourcePath::LibreDocument(path_buf) => path_buf,
-        };
-        this.cmp(that)
+        let this_path:&SafePath = self;
+        let that_path:&SafePath = other;
+        this_path.cmp(that_path)
     }
 }
 
@@ -48,6 +51,14 @@ impl TryFrom<&Path> for SourcePath {
 
 impl AsRef<Path> for SourcePath {
     fn as_ref(&self) -> &Path {
+        match self {
+            SourcePath::Image(p) | SourcePath::LibreDocument(p) | SourcePath::Pdf(p) => p,
+        }
+    }
+}
+
+impl AsRef<SafePath> for SourcePath {
+    fn as_ref(&self) -> &SafePath {
         match self {
             SourcePath::Image(p) | SourcePath::LibreDocument(p) | SourcePath::Pdf(p) => p,
         }
@@ -108,13 +119,5 @@ impl SourcePath {
             return Ok(SourcePath::LibreDocument(safe_path));
         }
         Err(InvalidSourceTypeError(safe_path))
-    }
-
-    pub fn file_name(&self) -> String {
-        match self {
-            SourcePath::Image(safe_path) => safe_path.file_name(),
-            SourcePath::Pdf(safe_path) => safe_path.file_name(),
-            SourcePath::LibreDocument(safe_path) => safe_path.file_name(),
-        }
     }
 }

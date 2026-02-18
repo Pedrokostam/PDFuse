@@ -22,6 +22,7 @@ regex = "1.12.3"
 anyhow = "1.0.101"
 tabled = "0.20.0"
 thiserror = "2.0.18"
+toml = "1.0.3"
 derive_more = {version =  "2.1.1", features = [
    "add",
    "add_assign",
@@ -69,7 +70,7 @@ indicatif.workspace = true
 log.workspace = true
 regex = {workspace = true}
 dirs = "6.0.0"
-toml = "0.9.11"
+toml.workspace=true
 serde_json = "1.0.149"
 
 [package.metadata.i18n]

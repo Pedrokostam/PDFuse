@@ -1,5 +1,5 @@
 use lopdf::{Document, ObjectId};
-use pdfuse_parameters::path::SafePath;
+use pdfuse_parameters::path::{SafePath, SourcePath};
 use pdfuse_sizing::paper::CustomPage;
 use pdfuse_sizing::Length;
 use pdfuse_utils::debug_t;
@@ -133,7 +133,7 @@ impl LoadedDocument {
         Document::load(path)
             .map(|data| LoadedDocument {
                 data: Box::new(data),
-                source_paths: DocumentSources::Single(SafePath::new(path)),
+                source_paths: DocumentSources::Single(SourcePath::Pdf(path.into())),
             })
             .map_err(Into::into)
     }

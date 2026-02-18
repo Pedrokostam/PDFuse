@@ -16,7 +16,6 @@ pub enum Page {
     Custom(CustomPage),
 }
 
-
 impl Page {
     pub fn try_from_string(text: &str) -> Result<Self, PageSizeError> {
         let trimmed = text.trim();

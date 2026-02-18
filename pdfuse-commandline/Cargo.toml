@@ -11,7 +11,7 @@ pdfuse-parameters = { path = "../pdfuse-parameters" }
 clap = { version = "4.5.57", features = ["color","derive","cargo","unicode","wrap_help","usage","help","error-context","suggestions","string"] }
 log.workspace = true
 serde.workspace=true
-toml = { version = "0.9.11", features = ["preserve_order"] }
+toml = { workspace=true, features = ["preserve_order"] }
 indoc = "2"
 color-print = "0.3.7"
 rust-i18n.workspace = true

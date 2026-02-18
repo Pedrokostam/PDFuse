@@ -1,13 +1,13 @@
 use std::path::Path;
 
 use image::{DynamicImage, ImageReader};
-use pdfuse_parameters::path::SafePath;
+use pdfuse_parameters::path::{SafePath, SourcePath};
 
 use crate::{conditional_slow_down, error::ImageLoadError};
 
 pub struct LoadedImage {
     image: Box<DynamicImage>,
-    source_path: SafePath,
+    source_path: SourcePath,
 }
 impl From<LoadedImage> for DynamicImage {
     fn from(value: LoadedImage) -> Self {
@@ -18,13 +18,13 @@ impl LoadedImage {
     pub fn width(&self) -> u32 {
         self.image.width()
     }
-    pub fn deconstruct(self) -> (DynamicImage, SafePath) {
+    pub fn deconstruct(self) -> (DynamicImage, SourcePath) {
         (*self.image, self.source_path)
     }
     pub fn height(&self) -> u32 {
         self.image.height()
     }
-    pub fn source_path(&self) -> &SafePath {
+    pub fn source_path(&self) -> &SourcePath {
         &self.source_path
     }
     pub fn load(path: impl AsRef<Path>) -> Result<LoadedImage, ImageLoadError> {
@@ -38,7 +38,7 @@ impl LoadedImage {
         conditional_slow_down();
         Ok(LoadedImage {
             image: Box::new(decoded_image),
-            source_path: SafePath::new(path),
+            source_path: SourcePath::Image(path.as_ref().into()),
         })
     }
 }

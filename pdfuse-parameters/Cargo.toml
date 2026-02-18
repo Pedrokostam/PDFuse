@@ -11,10 +11,12 @@ dirs = "6.0.0"
 rust-i18n.workspace = true
 log.workspace = true
 walkdir = "2.5.0"
+thiserror.workspace=true
+derive_more.workspace=true
 indoc = "2"
 color-print = "0.3.7"
 serde.workspace=true
-toml = { version = "0.9.11", features = ["preserve_order"] }
+toml = { workspace=true, features = ["preserve_order"] }
 chrono = "0.4.43"
 regex.workspace=true
 indicatif.workspace = true

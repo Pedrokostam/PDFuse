@@ -1,6 +1,5 @@
 use std::{
     fmt::Display,
-    ops::Neg,
     sync::LazyLock,
 };
 
@@ -22,32 +21,6 @@ pub struct CustomPage {
     pub horizontal: Length,
     pub vertical: Length,
 }
-
-// impl<T> Div<T> for CustomPage
-// where
-//     T: Copy + Into<f64>,
-// {
-//     type Output = CustomPage;
-//
-//     fn div(self, rhs: T) -> Self::Output {
-//         CustomPage {
-//             horizontal: self.horizontal / rhs.into(),
-//             vertical: self.vertical / rhs.into(),
-//         }
-//     }
-// }
-//
-// impl<T> Mul<T> for CustomPage where  T: Copy + Into<f64>,
-// {
-//     type Output = CustomPage;
-//
-//     fn mul(self, rhs: T) -> Self::Output {
-//         CustomPage {
-//             horizontal: self.horizontal * rhs.into(),
-//             vertical: self.vertical * rhs.into(),
-//         }
-//     }
-// }
 
 impl CustomPage {
    pub fn zero() -> Self {

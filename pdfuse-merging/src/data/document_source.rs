@@ -1,19 +1,30 @@
 use std::fmt::Display;
 
-use pdfuse_parameters::{path::SafePath, Bookmarks};
+use pdfuse_parameters::{
+    path::SourcePath,
+    Bookmarks,
+};
 
 #[derive(Debug, Clone)]
 pub enum DocumentSources {
-    Single(SafePath),
-    Multiple(Vec<SafePath>),
+    Single(SourcePath),
+    Multiple(Vec<SourcePath>),
 }
 
 impl DocumentSources {
-    pub fn new_single(path: impl Into<SafePath>) -> Self {
+    pub fn new_single(path: impl Into<SourcePath>) -> Self {
         DocumentSources::Single(path.into())
     }
-    pub fn new_multi(paths: impl IntoIterator<Item = impl Into<SafePath>>) -> Self {
-        DocumentSources::Multiple(paths.into_iter().map(|x| x.into()).collect())
+    pub fn new_multi(paths: impl IntoIterator<Item = impl Into<SourcePath>>) -> Self {
+        let veccy: Vec<SourcePath> = paths.into_iter().map(|x| x.into()).collect();
+        if veccy.is_empty() {
+            panic!("Created multisource document with no sources!");
+        }
+        let disc = std::mem::discriminant(&veccy[0]);
+        if !veccy.iter().all(|x| std::mem::discriminant(x) == disc) {
+            panic!("Created multisource document with different source types!");
+        }
+        DocumentSources::Multiple(veccy)
     }
 
     pub fn get_source_bookmarks(&self, option: Bookmarks, starting_index: usize) -> Vec<String> {
@@ -44,14 +55,8 @@ impl DocumentSources {
 impl Display for DocumentSources {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DocumentSources::Single(safe_path) => write!(f, "{safe_path}"),
-            DocumentSources::Multiple(safe_paths) => write!(f, "{} sources", safe_paths.len()),
+            DocumentSources::Single(source_path) => write!(f, "{source_path}"),
+            DocumentSources::Multiple(source_paths) => write!(f, "{} sources", source_paths.len()),
         }
-    }
-}
-
-impl From<Vec<SafePath>> for DocumentSources {
-    fn from(value: Vec<SafePath>) -> Self {
-        DocumentSources::Multiple(value)
     }
 }
