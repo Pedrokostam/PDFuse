@@ -4,6 +4,7 @@ use pdfuse_parameters::path::{SafePath, SourcePath};
 use pdfuse_sizing::paper::CustomPage;
 use pdfuse_sizing::{Length, Size};
 use pdfuse_utils::debug_t;
+use pdfuse_utils::log::{debug, error, warn};
 use printpdf::ImageCompression;
 use printpdf::{ImageOptimizationOptions, PdfDocument, PdfPage, RawImageData, RawImageFormat};
 use printpdf::{PdfSaveOptions, PdfWarnMsg, RawImage};
@@ -134,6 +135,9 @@ impl Imager {
             .document
             .with_pages(self.pages)
             .save(&save_options, &mut warnings);
+        for w in warnings {
+            warn!("Warning {}: {}", w.page, w.msg);
+        }
         Document::load_mem(&bytes).unwrap()
     }
     pub fn new<FloatLike, PageLike>(
@@ -173,6 +177,10 @@ impl Imager {
         let image_id = self.document.add_image(&pdf_image);
         let scale = page_with_margins.fit_size(&image_size);
         let translation = get_image_translation(page_size, image_size * scale, self.margin);
+        debug!(
+            "źź AddImage scale {scale} image size {}",
+            image_size.as_unit_string(pdfuse_sizing::Unit::Millimeter)
+        );
         let image_contents = printpdf::Op::UseXobject {
             id: image_id,
             transform: printpdf::XObjectTransform {
@@ -184,11 +192,19 @@ impl Imager {
                 rotate: None,
             },
         };
+        let pmmx: printpdf::Mm = page_size.horizontal.into();
+        let pmmx_r = Length::from_millimeters(pmmx.0);
+        let pptx: printpdf::Pt = page_size.horizontal.into();
+        let pptx_r = Length::from_points(pptx.0);
+        debug!("źź {} {} {} {}", pmmx.0, pptx.0, pmmx_r, pptx_r);
         let page = PdfPage::new(
-            page_size.horizontal.into(),
-            page_size.vertical.into(),
+            (page_size.horizontal * 2.0).into(),
+            (page_size.vertical * 10.0).into(),
             vec![image_contents],
         );
+        debug!("źź Crop {}", CustomPage::from(&page.crop_box));
+        debug!("źź Media {}", CustomPage::from(&page.media_box));
+        debug!("źź Trim {}", CustomPage::from(&page.trim_box));
         self.page_paths.push(image_path);
         self.pages.push(page);
         conditional_slow_down();
@@ -197,6 +213,14 @@ impl Imager {
 }
 
 fn adjust_to_dpi(image: LoadedImage, draw_area: CustomPage, dpi: f64) -> DynamicImage {
+    error!(
+        "Image {} of size {}x{} to fit in {} at dpi {}",
+        image.source_path(),
+        image.width(),
+        image.height(),
+        draw_area.as_unit_string(pdfuse_sizing::Unit::Millimeter),
+        dpi
+    );
     let horizontal_pixel_max = draw_area.horizontal.inches() * dpi;
     let vertical_pixel_max = draw_area.vertical.inches() * dpi;
 

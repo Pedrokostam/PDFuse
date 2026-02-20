@@ -1,7 +1,4 @@
-use std::{
-    fmt::Display,
-    sync::LazyLock,
-};
+use std::{fmt::Display, sync::LazyLock};
 
 use derive_more::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use regex::Regex;
@@ -13,8 +10,24 @@ use crate::{
     Length, Size, TransposableSize, Unit,
 };
 
-#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
-#[derive(Sub,Add,Neg,Mul,Div,AddAssign,SubAssign,MulAssign,DivAssign)]
+#[derive(
+    Debug,
+    PartialEq,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    Default,
+    Sub,
+    Add,
+    Neg,
+    Mul,
+    Div,
+    AddAssign,
+    SubAssign,
+    MulAssign,
+    DivAssign,
+)]
 #[serde(try_from = "String")]
 #[serde(into = "String")]
 pub struct CustomPage {
@@ -23,7 +36,7 @@ pub struct CustomPage {
 }
 
 impl CustomPage {
-   pub fn zero() -> Self {
+    pub fn zero() -> Self {
         CustomPage {
             horizontal: Length::zero(),
             vertical: Length::zero(),
@@ -204,6 +217,15 @@ impl From<Page> for CustomPage {
             Page::Standard(iso_paper) => iso_paper.into(),
             Page::Custom(custom_size) => custom_size,
             Page::American(us_paper) => us_paper.into(),
+        }
+    }
+}
+
+impl From<&printpdf::Rect> for CustomPage {
+    fn from(value: &printpdf::Rect) -> Self {
+        CustomPage {
+            horizontal: Length::from_points(value.width.0),
+            vertical: Length::from_points(value.height.0),
         }
     }
 }

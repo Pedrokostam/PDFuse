@@ -193,6 +193,10 @@ fn sequential_documentize(
             Ok(item) => {
                 match item {
                     Data::Document(loaded_document) => {
+                        debug!("Processing document: {}", loaded_document.source_paths());
+                        for (i, custom_page) in loaded_document.page_sizes().iter().enumerate() {
+                            debug!("\tPage {}: {:?}", i, custom_page);
+                        }
                         if let Some(img) = imager {
                             let new_images = img.close_and_into_loaded_document();
                             output.push(Indexed::new(index - 1, Ok(new_images)));
@@ -203,6 +207,7 @@ fn sequential_documentize(
                         output.push(Indexed::new(index, Ok(loaded_document)));
                     }
                     Data::Image(loaded_image) => {
+                        debug!("Processing image: {}", loaded_image.source_path());
                         let refimg = imager.get_or_insert_with(|| {
                             Imager::new(
                                 "title",

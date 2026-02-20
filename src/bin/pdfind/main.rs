@@ -94,3 +94,4 @@ fn handle_data(table_data: Vec<PageInfoRow>, bundle: bool, unit:Option<Unit>) {
     tabelka.to_string();
     println!("{tabelka}");
 }
+
