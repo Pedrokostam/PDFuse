@@ -33,7 +33,7 @@ derive_more = {version =  "2.1.1", features = [
    "from_str",
    "mul_assign"
 ] }
-printpdf = { version = "0.8.2", features = [
+printpdf = { version = "0.9.1", features = [
     "bmp",
     "gif",
     "jpeg",

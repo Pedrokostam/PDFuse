@@ -1,4 +1,4 @@
-use lopdf::{Document, Object, ObjectId};
+use lopdf::{Document, Object, ObjectId, SaveOptions};
 use pdfuse_parameters::{
     path::{SafePath, SourcePath},
     Bookmarks, Parameters,
@@ -12,7 +12,7 @@ use pdfuse_utils::{
 };
 use rayon::iter::ParallelIterator;
 use size_guide::SizeGuide;
-use std::{collections::BTreeMap, env, error::Error, fmt::Display, path::Path};
+use std::{collections::BTreeMap, env, error::Error, fmt::Display, fs::File, path::Path};
 
 pub use imager::Imager;
 pub use loaded_document::LoadedDocument;
@@ -523,6 +523,26 @@ pub fn merge_documents(
                         output_bookmark_parent = Some(new_parent);
                     }
                 }
+                debug!(
+                    "{:?}",
+                    iterated_document
+                        .get_object(object_id)
+                        .unwrap()
+                        .as_dict()
+                        .unwrap()
+                        .get(b"MediaBox") // <-- At this point pts are truncated!
+                );
+
+                for qq in iterated_document
+                    .get_object(object_id)
+                    .unwrap()
+                    .as_dict()
+                    .unwrap()
+                    .iter()
+                {
+                    debug!("śśś key: {}", String::from_utf8(qq.0.to_vec()).unwrap());
+                }
+
                 (
                     object_id,
                     iterated_document.get_object(object_id).unwrap().to_owned(),
@@ -666,8 +686,15 @@ pub fn merge_documents(
         }
     }
 
+    let options = SaveOptions {
+        use_object_streams: true,
+        use_xref_streams: true,
+        ..Default::default()
+    };
     output_document.compress();
-    output_document.save(output_path).unwrap();
+    let mut file = File::create(output_path).expect("Destination should be writable");
+    let _ = output_document.save_with_options(&mut file, options);
+    // output_document.save(output_path).unwrap();
     if !errors.is_empty() {
         let indices = errors
             .iter()

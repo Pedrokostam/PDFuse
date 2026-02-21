@@ -198,8 +198,8 @@ impl Imager {
         let pptx_r = Length::from_points(pptx.0);
         debug!("źź {} {} {} {}", pmmx.0, pptx.0, pmmx_r, pptx_r);
         let page = PdfPage::new(
-            (page_size.horizontal * 2.0).into(),
-            (page_size.vertical * 10.0).into(),
+            (page_size.horizontal * 1.0).into(),
+            (page_size.vertical * 1.0).into(),
             vec![image_contents],
         );
         debug!("źź Crop {}", CustomPage::from(&page.crop_box));
