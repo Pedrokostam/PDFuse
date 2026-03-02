@@ -14,7 +14,7 @@ members = [
 
 [workspace.dependencies]
 log = "0.4.29"
-indicatif = {version= "0.18.3", features = ["rayon"]}
+indicatif = {version= "0.17.11", features = ["rayon"]}
 rust-i18n = "3.1.5"
 serde = { version = "1.0.228", features = ["derive"] }
 rayon = "1.11.0"
@@ -33,17 +33,21 @@ derive_more = {version =  "2.1.1", features = [
    "from_str",
    "mul_assign"
 ] }
-printpdf = { version = "0.9.1", features = [
-    "bmp",
-    "gif",
-    "jpeg",
-    "png",
-    "pnm",
-    "tga",
-    "tiff",
-    "webp",
-    "ico",
+lopdf = {version = "0.39.0", features = [
+"image",
+"embed_image",
 ] }
+# printpdf = { version = "0.9.1", features = [
+#     "bmp",
+#     "gif",
+#     "jpeg",
+#     "png",
+#     "pnm",
+#     "tga",
+#     "tiff",
+#     "webp",
+#     "ico",
+# ] }
 
 [workspace.lints.clippy]
 
@@ -57,12 +61,10 @@ pdfuse-parameters = { path = "pdfuse-parameters" }
 pdfuse-commandline = { path = "pdfuse-commandline" }
 clap = { version = "4.5.57", features = ["derive"] }
 color-print = "0.3.7"
-lopdf = "0.38.0"
 rust-i18n.workspace = true
+lopdf.workspace=true
 walkdir = "2.5.0"
 tabled.workspace = true
-printpdf = { workspace = true }
-anyhow = { workspace = true }
 image = "0.25.9"
 dashmap = "6.1.0"
 rayon = "1.11.0"

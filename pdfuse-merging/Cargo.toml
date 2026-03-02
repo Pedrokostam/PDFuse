@@ -9,14 +9,24 @@ pdfuse-sizing = { path = "../pdfuse-sizing" }
 pdfuse-utils = { path = "../pdfuse-utils" }
 pdfuse-parameters = { path = "../pdfuse-parameters" }
 indicatif.workspace = true
-printpdf = {workspace = true}
+lopdf = {workspace = true}
 rust-i18n.workspace = true
 dashmap = "6.1.0"
 rayon.workspace=true
-lopdf = "0.38.0"
 regex = {workspace = true}
 anyhow = { workspace = true }
-
+thiserror.workspace=true
+printpdf = { version = "0.9.1", features = [
+    "bmp",
+    "gif",
+    "jpeg",
+    "png",
+    "pnm",
+    "tga",
+    "tiff",
+    "webp",
+    "ico",
+] }
 [lints]
 workspace = true
 

@@ -6,6 +6,7 @@
 // }
 // #![feature(inherent_associated_types)]
 pub mod data;
+pub mod merger;
 // mod documenter;
 pub mod error;
 pub use data::load;
@@ -26,7 +27,10 @@ mod tests {
         process::{Command, Stdio},
     };
     const MEDIABOX_PATTERN: &str = r"^MediaBox.*\s(?P<W>\d+\.\d\d)\s+(?P<H>\d+\.\d\d)";
-    use pdfuse_parameters::{path::{SafePath, SourcePath}, Parameters };
+    use pdfuse_parameters::{
+        path::{SafePath, SourcePath},
+        Parameters,
+    };
     use pdfuse_sizing::{
         paper::{CustomPage, IsoPaper, Page, UsPaper},
         TransposableSize,

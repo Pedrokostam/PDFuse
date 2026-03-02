@@ -127,6 +127,14 @@ impl CustomPage {
             vertical: unit_distance_2,
         })
     }
+    pub fn to_pdf_object_array(&self) -> Vec<lopdf::Object> {
+        vec![
+            0.0.into(),
+            0.0.into(),
+            self.horizontal.into(),
+            self.vertical.into(),
+        ]
+    }
 }
 
 impl Display for CustomPage {
@@ -177,6 +185,12 @@ impl Size for CustomPage {
     }
 }
 
+impl From<CustomPage> for Vec<lopdf::Object> {
+    fn from(value: CustomPage) -> Self {
+        value.to_pdf_object_array()
+    }
+}
+
 impl TryFrom<&str> for CustomPage {
     type Error = LengthParseError;
 
@@ -221,16 +235,6 @@ impl From<Page> for CustomPage {
     }
 }
 
-impl From<&printpdf::Rect> for CustomPage {
-    fn from(value: &printpdf::Rect) -> Self {
-        CustomPage {
-            horizontal: Length::from_points(value.width.0),
-            vertical: Length::from_points(value.height.0),
-        }
-    }
-}
-
-#[cfg(test)]
 pub(crate) mod tests {
     #![allow(clippy::expect_fun_call)]
 

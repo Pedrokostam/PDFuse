@@ -115,6 +115,10 @@ impl Length {
     pub fn from_points(points: impl Into<f64>) -> Self {
         Self::from_unit(points, Unit::Point)
     }
+
+    pub fn from_pixels(pixels: impl Into<f64>, dpi: impl Into<f64>) -> Self {
+        Self::from_inches(pixels.into() / dpi.into())
+    }
 }
 
 impl Length {
@@ -202,15 +206,10 @@ impl Display for Length {
     }
 }
 
-impl From<Length> for printpdf::units::Mm {
+/// Converts to a float objects, using points as measurement
+impl From<Length> for lopdf::Object {
     fn from(val: Length) -> Self {
-        printpdf::units::Mm(val.millimeters() as f32)
-    }
-}
-
-impl From<Length> for printpdf::units::Pt {
-    fn from(val: Length) -> Self {
-        printpdf::units::Pt(val.points() as f32)
+        Self::Real(val.points() as f32)
     }
 }
 
