@@ -128,9 +128,9 @@ impl Imager {
             image_data,
         };
         let mut closed = closable_new.close_and_into_document_new();
-        closed.save("new.pdf");
+        let _ = closed.save("new.pdf");
         let mut closed = closable.close_and_into_document();
-        closed.save("old.pdf");
+        let _ = closed.save("old.pdf");
         let doc_sources = DocumentSources::new_multi(page_paths);
         LoadedDocument::from_document_like(doc_sources, Box::new(closed))
 
@@ -162,13 +162,14 @@ impl Imager {
 
             let x_pos = (self.page_size.horizontal() - img_width) / 2.0 + self.margin.vertical();
             let y_pos = (self.page_size.vertical() - img_height) / 2.0 + self.margin.horizontal();
+            println!("{x_pos} {y_pos}");
             // doc.insert_image(page_id, img_object, position, size);
             // lopdf::xobject::image_from(p)
 
             doc.insert_image(
                 page_id,
                 pdf_image,
-                (0.0, 0.0),
+                (x_pos.points() as f32, y_pos.points() as f32),
                 (img_width.points() as f32, img_width.points() as f32),
             )
             .expect("'s oay");

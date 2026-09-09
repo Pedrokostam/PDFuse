@@ -9,6 +9,10 @@ alias rfind := run-pdfind
 default:
    just --list
 
+[group('proto')]
+proto1:
+   cargo run --bin pdfuse -- test_items/image/large.png -o output.pdf  #&& cargo run --bin pdfind -- output.pdf 
+
 [group('build')]
 build-pdfuse:
    cargo build --bin pdfuse
@@ -22,11 +26,11 @@ build-all: build-pdfind build-pdfuse
 
 [group('run')]
 run-pdfuse:
-   cargo run --bin pdfuse
+   cargo run --bin pdfuse --
 
 [group('run')]
 run-pdfind:
-   cargo run --bin pdfind
+   cargo run --bin pdfind --
 
 # Launch all tests in the whole workspace
 test:

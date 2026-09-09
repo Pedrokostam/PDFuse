@@ -473,6 +473,11 @@ pub fn merge_documents(
     bookmark: Bookmarks,
 ) {
     // Define a starting max_id (will be used as start index for object_ids)
+    println!("Documents: {}",documents.len());
+    assert!(
+        !documents.is_empty(),
+        "No documents to merge!"
+    );
     let busy = get_registered_busy_indicator("_&Generating PDF...");
     // Keeps count of ids in the merged document
     let mut max_id = 1;
@@ -502,6 +507,7 @@ pub fn merge_documents(
         bookmark_count += b.len();
 
         let mut iterated_document: Document = loaded_document.into();
+        let _ = iterated_document.save("interim.pdf").expect("interim failed");
         iterated_document.renumber_objects_with(max_id);
         max_id = iterated_document.max_id + 1;
         let mut output_bookmark_parent: Option<u32> = None;
@@ -568,6 +574,7 @@ pub fn merge_documents(
         // All other objects should be collected and inserted into the main Document
         match object.type_name().unwrap_or(b"") {
             b"Catalog" => {
+                println!("Catalog");
                 // Collect a first "Catalog" object and use it for the future "Pages"
                 catalog_object = Some((
                     if let Some((id, _)) = catalog_object {
@@ -579,6 +586,7 @@ pub fn merge_documents(
                 ));
             }
             b"Pages" => {
+                println!("Pages");
                 // Collect and update a first "Pages" object and use it for the future "Catalog"
                 // We have also to merge all dictionaries of the old and the new "Pages" object
                 if let Ok(dictionary) = object.as_dict() {
@@ -599,10 +607,17 @@ pub fn merge_documents(
                     ));
                 }
             }
-            b"Page" => {}     // Ignored, processed later and separately
-            b"Outlines" => {} // Ignored, not supported yet
-            b"Outline" => {}  // Ignored, not supported yet
+            b"Page" => {
+                println!("Page");
+            } // Ignored, processed later and separately
+            b"Outlines" => {
+                println!("Outlines");
+            } // Ignored, not supported yet
+            b"Outline" => {
+                println!("Outline");
+            } // Ignored, not supported yet
             _ => {
+                println!("Other");
                 output_document.objects.insert(*object_id, object.clone());
             }
         }
