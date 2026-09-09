@@ -4,14 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-image = "0.25.9"
+image.workspace = true
 pdfuse-sizing = { path = "../pdfuse-sizing" }
 pdfuse-utils = { path = "../pdfuse-utils" }
 pdfuse-parameters = { path = "../pdfuse-parameters" }
 indicatif.workspace = true
 lopdf = {workspace = true}
 rust-i18n.workspace = true
-dashmap = "6.1.0"
+dashmap.workspace = true
 rayon.workspace=true
 regex = {workspace = true}
 anyhow = { workspace = true }

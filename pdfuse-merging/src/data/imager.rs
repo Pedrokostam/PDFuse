@@ -267,7 +267,22 @@ impl Imager {
         for w in warnings {
             warn!("Warning {}: {}", w.page, w.msg);
         }
-        Document::load_mem(&bytes).unwrap()
+        let mut doc = Document::load_mem(&bytes).unwrap();
+        // printpdf 0.9.1 rounds MediaBox/TrimBox/CropBox to integer points
+        // (Rect::to_array). Rewrite them with the precise float array so metric
+        // page sizes stay exact.
+        let precise_box = self.page_size.to_pdf_object_array();
+        let page_ids: Vec<_> = doc.get_pages().into_values().collect();
+        for page_id in page_ids {
+            if let Ok(dict) = doc.get_object_mut(page_id).and_then(|o| o.as_dict_mut()) {
+                for key in [b"MediaBox".as_slice(), b"TrimBox", b"CropBox"] {
+                    if dict.has(key) {
+                        dict.set(key, precise_box.clone());
+                    }
+                }
+            }
+        }
+        doc
     }
 
     pub fn new<FloatLike, PageLike>(

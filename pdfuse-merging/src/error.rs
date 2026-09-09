@@ -89,3 +89,4 @@ impl Display for PageSizeParseError {
         write_t!(f, "error.page_parse")
     }
 }
+impl std::error::Error for PageSizeParseError {}
