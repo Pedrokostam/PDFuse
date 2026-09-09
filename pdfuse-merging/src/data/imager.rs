@@ -1,13 +1,10 @@
-use std::io::Write;
-
 use image::{imageops::FilterType, DynamicImage};
 use lopdf::{dictionary, Document};
-use pdfuse_parameters::path::{SafePath, SourcePath};
+use pdfuse_parameters::path::SourcePath;
 use pdfuse_sizing::paper::CustomPage;
 use pdfuse_sizing::{Length, Size};
 use pdfuse_utils::debug_t;
-use pdfuse_utils::log::{debug, error, warn};
-// use printpdf::{printpdf::ImageCompression, printpdf::ImageOptimizationOptions, printpdf::PdfDocument, printpdf::PdfPage, printpdf::PdfSaveOptions, printpdf::PdfWarnMsg, printpdf::RawImage, printpdf::RawImageData, printpdf::RawImageFormat};
+use pdfuse_utils::log::{debug, error};
 
 use crate::conditional_slow_down;
 use crate::data::document_source::DocumentSources;
@@ -17,276 +14,83 @@ use crate::error::ImageLoadError;
 
 use super::LoadedImage;
 
-fn dynamic_to_pdf(
-    image: DynamicImage,
-    path: SafePath,
-) -> Result<printpdf::RawImage, ImageLoadError> {
-    // yoinked from printpdf
-    // I couldn't find anything to create image from already loaded image.
-    let width = image.width() as usize;
-    let height = image.height() as usize;
-    let data_format = match image.color() {
-        image::ColorType::L8 => Ok(printpdf::RawImageFormat::R8),
-        image::ColorType::La8 => Ok(printpdf::RawImageFormat::RG8),
-        image::ColorType::Rgb8 => Ok(printpdf::RawImageFormat::RGB8),
-        image::ColorType::Rgba8 => Ok(printpdf::RawImageFormat::RGBA8),
-        image::ColorType::L16 => Ok(printpdf::RawImageFormat::R16),
-        image::ColorType::La16 => Ok(printpdf::RawImageFormat::RG16),
-        image::ColorType::Rgb16 => Ok(printpdf::RawImageFormat::RGB16),
-        image::ColorType::Rgba16 => Ok(printpdf::RawImageFormat::RGBA16),
-        image::ColorType::Rgb32F => Ok(printpdf::RawImageFormat::RGBF32),
-        image::ColorType::Rgba32F => Ok(printpdf::RawImageFormat::RGBAF32),
-        _ => Err(ImageLoadError::UnknownFormat(path.clone())),
-    }?;
-    let pixels = match image {
-        DynamicImage::ImageLuma8(imbuffer) => Ok(printpdf::RawImageData::U8(imbuffer.into_raw())),
-        DynamicImage::ImageLumaA8(imbuffer) => Ok(printpdf::RawImageData::U8(imbuffer.into_raw())),
-        DynamicImage::ImageRgb8(imbuffer) => Ok(printpdf::RawImageData::U8(imbuffer.into_raw())),
-        DynamicImage::ImageRgba8(imbuffer) => Ok(printpdf::RawImageData::U8(imbuffer.into_raw())),
-        DynamicImage::ImageLuma16(imbuffer) => Ok(printpdf::RawImageData::U16(imbuffer.into_raw())),
-        DynamicImage::ImageLumaA16(imbuffer) => {
-            Ok(printpdf::RawImageData::U16(imbuffer.into_raw()))
-        }
-        DynamicImage::ImageRgb16(imbuffer) => Ok(printpdf::RawImageData::U16(imbuffer.into_raw())),
-        DynamicImage::ImageRgba16(imbuffer) => Ok(printpdf::RawImageData::U16(imbuffer.into_raw())),
-        DynamicImage::ImageRgb32F(imbuffer) => Ok(printpdf::RawImageData::F32(imbuffer.into_raw())),
-        DynamicImage::ImageRgba32F(imbuffer) => {
-            Ok(printpdf::RawImageData::F32(imbuffer.into_raw()))
-        }
-        _ => Err(ImageLoadError::UnknownPixelType(path)),
-    }?;
-    Ok(printpdf::RawImage {
-        width,
-        height,
-        data_format,
-        pixels,
-        tag: vec![],
-    })
+/// An image with its computed on-page size and lower-left position, both in
+/// PDF points (bottom-left origin).
+struct PlacedImage {
+    image: LoadedImage2,
+    size: CustomPage,
+    position: CustomPage,
 }
 
 pub struct Imager {
-    pub(crate) document: printpdf::PdfDocument,
     pub(crate) page_size: CustomPage,
     pub(crate) dpi: f64,
     pub(crate) margin: CustomPage,
-    pub(crate) pages: Vec<printpdf::PdfPage>,
     pub(crate) quality: u8,
     pub(crate) lossless: bool,
     page_paths: Vec<SourcePath>,
-    pub(crate) image_data: Vec<LoadedImage2>,
+    placements: Vec<PlacedImage>,
 }
 impl Imager {
-    fn get_options(&self) -> printpdf::PdfSaveOptions {
-        printpdf::PdfSaveOptions {
-            optimize: true,
-            subset_fonts: true,
-            secure: true,
-            image_optimization: Some(printpdf::ImageOptimizationOptions {
-                quality: Some(self.quality as f32 / 100.0),
-                max_image_size: Some("2006gb".to_string()), // arbitrarily large size -> we resize the image by ourselves
-                format: match self.lossless {
-                    true => Some(printpdf::ImageCompression::Flate),
-                    false => Some(printpdf::ImageCompression::Jpeg),
-                },
-                ..Default::default()
-            }),
-        }
-    }
-
     pub fn close_and_into_loaded_document(self) -> LoadedDocument {
-        let Imager {
-            document,
-            page_size,
-            dpi,
-            margin,
-            pages,
-            quality,
-            lossless,
-            page_paths,
-            image_data,
-        } = self;
-        let closable_new = Imager {
-            document: document.clone(),
-            page_size: page_size.clone(),
-            dpi: dpi.clone(),
-            margin: margin.clone(),
-            pages: pages.clone(),
-            quality: quality.clone(),
-            lossless: lossless.clone(),
-            page_paths: vec![],
-            image_data: image_data.clone(),
-        };
-        let closable = Imager {
-            document,
-            page_size,
-            dpi,
-            margin,
-            pages,
-            quality,
-            lossless,
-            page_paths: vec![],
-            image_data,
-        };
-        let mut closed = closable_new.close_and_into_document_new();
-        let _ = closed.save("new.pdf");
-        let mut closed = closable.close_and_into_document();
-        let _ = closed.save("old.pdf");
-        let doc_sources = DocumentSources::new_multi(page_paths);
-        LoadedDocument::from_document_like(doc_sources, Box::new(closed))
-
-        // let opt = get_options();
+        let doc_sources = DocumentSources::new_multi(self.page_paths.clone());
+        let doc = self.close_and_into_document();
+        LoadedDocument::from_document_like(doc_sources, Box::new(doc))
     }
 
-    pub fn close_and_into_document_new(self) -> lopdf::Document {
-        let mut doc = lopdf::Document::new();
-        let pages_root_object = doc.new_object_id();
-
+    fn close_and_into_document(self) -> Document {
+        let mut doc = Document::new();
+        let pages_root = doc.new_object_id();
+        let image_count = self.placements.len();
         let mut page_ids = vec![];
-        let image_count = self.image_data.len();
 
-        for p in self.image_data {
-            let img_width = Length::from_pixels(p.width(), self.dpi);
-            let img_height = Length::from_pixels(p.height(), self.dpi);
-            let payload = p.get_pdf_payload();
-            let mut f = std::fs::File::create("AAAA.bin").unwrap();
-            f.write_all(&payload).unwrap();
-            let pdf_image = lopdf::xobject::image_from(payload).expect("TSETING");
-
+        for placed in self.placements {
             let contents = doc.add_object(lopdf::Stream::new(dictionary! {}, vec![]));
             let page_id = doc.add_object(dictionary! {
                 "Type" => "Page",
-                "Parent" => pages_root_object,
-                "MediaBox" =>self.page_size.to_pdf_object_array(),
-                "Contents" => lopdf::Object::Reference(contents)
+                "Parent" => pages_root,
+                "MediaBox" => self.page_size.to_pdf_object_array(),
+                "Contents" => lopdf::Object::Reference(contents),
             });
 
-            let x_pos = (self.page_size.horizontal() - img_width) / 2.0 + self.margin.vertical();
-            let y_pos = (self.page_size.vertical() - img_height) / 2.0 + self.margin.horizontal();
-            println!("{x_pos} {y_pos}");
-            // doc.insert_image(page_id, img_object, position, size);
-            // lopdf::xobject::image_from(p)
-
+            let payload = placed.image.get_pdf_payload(self.lossless, self.quality);
+            let pdf_image =
+                lopdf::xobject::image_from(payload).expect("image payload should be decodable");
             doc.insert_image(
                 page_id,
                 pdf_image,
-                (x_pos.points() as f32, y_pos.points() as f32),
-                (img_width.points() as f32, img_width.points() as f32),
+                (
+                    placed.position.horizontal.points() as f32,
+                    placed.position.vertical.points() as f32,
+                ),
+                (
+                    placed.size.horizontal.points() as f32,
+                    placed.size.vertical.points() as f32,
+                ),
             )
-            .expect("'s oay");
-
-            // let image_id = doc.add_object(lopdf::Stream::new(
-            //     dictionary! {
-            //         "Type"=>"XObject",
-            //         "Subtype" => "Image",
-            //         "Width" => p.width(),
-            //         "Height"=>p.height(),
-            //         "ColorSpace" => "DeviceRGB",
-            //         "BitsPerComponent" => 8,
-            //         "Filter"=>"DCTDecode",
-            //     },
-            //     p.into_bytes(),
-            // ));
-            // let content = lopdf::content::Content {
-            //     operations: vec![
-            //         lopdf::content::Operation::new("q", vec![]),
-            //         lopdf::content::Operation::new(
-            //             "cm",
-            //             vec![
-            //                 img_width.into(),
-            //                 0.into(),
-            //                 0.into(),
-            //                 img_height.into(),
-            //                 0.into(), // x_pos.into(),
-            //                 0.into(), //                            y_pos.into(),
-            //             ],
-            //         ),
-            //         lopdf::content::Operation::new("Do", vec!["Im1".into()]),
-            //         lopdf::content::Operation::new("Q", vec![]),
-            //     ],
-            // };
-            // let content_id = doc.add_object(lopdf::Stream::new(
-            //     dictionary! {},
-            //     content.encode().expect("dont worry about it"),
-            // ));
-            // let page_id = doc.add_object(dictionary! {
-            //     "Type" => "Page",
-            //     "Parent" => pages_root_object,
-            //     "MediaBox" =>self.page_size.to_pdf_object_array(),
-            //     "Resources" => dictionary! {
-            //         "XObject" => dictionary! {
-            //             "Im1" => image_id,
-            //         },
-            //     },
-            //     "Contents" => content_id,
-            // });
+            .expect("inserting image into freshly created page");
             page_ids.push(page_id.into());
         }
+
         doc.objects.insert(
-            pages_root_object,
+            pages_root,
             lopdf::Object::Dictionary(dictionary! {
-                "Type"=>"Pages",
+                "Type" => "Pages",
                 "Kids" => page_ids,
-                "Count"=> lopdf::Object::Integer (image_count as i64),
-                "MediaBox" =>self.page_size.to_pdf_object_array(),
+                "Count" => lopdf::Object::Integer(image_count as i64),
+                "MediaBox" => self.page_size.to_pdf_object_array(),
             }),
         );
         let catalog_id = doc.add_object(dictionary! {
-            "Type"=>"Catalog",
-            "Pages"=>pages_root_object,
+            "Type" => "Catalog",
+            "Pages" => pages_root,
         });
         doc.trailer.set("Root", catalog_id);
-        // doc.trailer.set("Size", (doc.objects.len() + 1) as u16);
-        // doc.renumber_objects();
-        doc
-    }
-
-    pub fn close_and_into_document(mut self) -> Document {
-        // unsafe { self.document.get_inner() }
-        let save_options = self.get_options();
-        /*
-        Regarding SaveOptions (for printpdf 0.8.2):
-        - format
-            Jpeg|Jpeg2000 -> DCTDecode
-            Auto (color) -> DCTDecode
-            Auto (gray) -> FlateDecode
-            AllElse -> FlateDecode
-
-            Alpha is encoded separately (usually flate) and applied as a mask
-        - quality
-            Only DCTDecode uses quality (which should be (0,1> as it is multiplied by 100 in crate)
-
-        - max_image_size
-            If uncompressed(!) image would exceed the size, scale it down
-
-         */
-        let mut warnings: Vec<printpdf::PdfWarnMsg> = vec![];
-        let bytes = self
-            .document
-            .with_pages(self.pages)
-            .save(&save_options, &mut warnings);
-        for w in warnings {
-            warn!("Warning {}: {}", w.page, w.msg);
-        }
-        let mut doc = Document::load_mem(&bytes).unwrap();
-        // printpdf 0.9.1 rounds MediaBox/TrimBox/CropBox to integer points
-        // (Rect::to_array). Rewrite them with the precise float array so metric
-        // page sizes stay exact.
-        let precise_box = self.page_size.to_pdf_object_array();
-        let page_ids: Vec<_> = doc.get_pages().into_values().collect();
-        for page_id in page_ids {
-            if let Ok(dict) = doc.get_object_mut(page_id).and_then(|o| o.as_dict_mut()) {
-                for key in [b"MediaBox".as_slice(), b"TrimBox", b"CropBox"] {
-                    if dict.has(key) {
-                        dict.set(key, precise_box.clone());
-                    }
-                }
-            }
-        }
         doc
     }
 
     pub fn new<FloatLike, PageLike>(
-        title: &str,
+        _title: &str,
         page_size: PageLike,
         dpi: FloatLike,
         margin: CustomPage,
@@ -298,15 +102,13 @@ impl Imager {
         PageLike: Into<CustomPage>,
     {
         Imager {
-            document: printpdf::PdfDocument::new(title),
             page_size: page_size.into(),
             dpi: dpi.into(),
             margin,
-            pages: vec![],
             quality,
             lossless,
             page_paths: vec![],
-            image_data: vec![],
+            placements: vec![],
         }
     }
 
@@ -314,41 +116,34 @@ impl Imager {
         let page_size = self.page_size;
         let page_with_margins = page_size - self.margin;
         let image_path = image.source_path().clone();
+        if page_with_margins.horizontal <= Length::zero()
+            || page_with_margins.vertical <= Length::zero()
+        {
+            let err = ImageLoadError::MarginTooLarge {
+                path: image_path.into(),
+                page: page_size,
+                margin: self.margin,
+            };
+            error!("{err}");
+            return Err(err);
+        }
         let adjusted_image = adjust_to_dpi(image, page_with_margins, self.dpi);
 
         let image_size = get_image_size(&adjusted_image, self.dpi);
-
-        self.image_data.push(LoadedImage2::from_dynamic_image(
-            image_path.clone(),
-            adjusted_image.clone(),
-        ));
-        let pdf_image = dynamic_to_pdf(adjusted_image, image_path.clone().into())?;
-
-        let image_id = self.document.add_image(&pdf_image);
         let scale = page_with_margins.fit_size(&image_size);
-        let translation = get_image_translation(page_size, image_size * scale, self.margin);
+        let on_page = image_size * scale;
+        let position = get_image_translation(page_size, on_page, self.margin);
         debug!(
             "źź AddImage scale {scale} image size {}",
             image_size.as_unit_string(pdfuse_sizing::Unit::Millimeter)
         );
-        let image_contents = printpdf::Op::UseXobject {
-            id: image_id,
-            transform: printpdf::XObjectTransform {
-                scale_x: Some(scale as f32),
-                scale_y: Some(scale as f32),
-                dpi: Some(self.dpi as f32),
-                translate_x: Some(printpdf::Pt(translation.vertical.points() as f32)),
-                translate_y: Some(printpdf::Pt(translation.vertical.points() as f32)),
-                rotate: None,
-            },
-        };
-        let page = printpdf::PdfPage::new(
-            printpdf::Pt(page_size.horizontal.points() as f32).into(),
-            printpdf::Pt(page_size.vertical.points() as f32).into(),
-            vec![image_contents],
-        );
-        self.page_paths.push(image_path);
-        self.pages.push(page);
+
+        self.page_paths.push(image_path.clone());
+        self.placements.push(PlacedImage {
+            image: LoadedImage2::from_dynamic_image(image_path, adjusted_image),
+            size: on_page,
+            position,
+        });
         conditional_slow_down();
         Ok(())
     }

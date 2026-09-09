@@ -27,9 +27,11 @@ error:
   invalid_mediabox: 'Could not read media box of any page of %{document}.'
   not_supported: 'The following immediate file has unsupported type - %{path}'
   no_valid_files: 'No valid files detected in the input paths'
+  libreoffice_not_found: 'LibreOffice was not found, so document files (e.g. .doc, .docx, .odt) cannot be converted. Install LibreOffice or pass --libreoffice-path to the soffice executable. Merging stopped.'
   invalid_config_path: 'Malformed file path - %{path}'
   missing_config_file: 'No configuration file at the given path - %{path}'
   image_invalid_format: 'Unrecognized image format: %{path}'
   image_invalid_pixel_type: 'Unrecognized pixel format: %{path}'
+  margin_too_large: 'Margin %{margin} leaves no printable area on page %{page} for image %{path}.'
   failed_count: "Failed adding %{count} files: %{indices}"
   what_if_mode: "What-if mode enabled"

@@ -24,6 +24,9 @@ static ENV_FIND: LazyLock<Regex> =
 
 #[cfg(windows)]
 pub(crate) fn is_executable(path: &Path) -> bool {
+    if !path.is_file() {
+        return false;
+    }
     if let Some(extension) = path.extension() {
         // Check for common executable extensions
         let exe_extensions = ["exe", "bat", "cmd", "com"];

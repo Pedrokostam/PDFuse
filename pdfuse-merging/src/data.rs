@@ -363,6 +363,15 @@ pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
         docs: documents_to_pdf,
     } = split_paths(sources);
 
+    // Directly-specified document files reach here even without LibreOffice
+    // (directory scans already drop them when it is unavailable). We cannot
+    // convert them, so stop with an explicit error instead of silently
+    // producing nothing.
+    if !documents_to_pdf.is_empty() && parameters.libreoffice_path.is_none() {
+        error_t!("error.libreoffice_not_found");
+        return;
+    }
+
     let conversion_thread = OptionalThread::create(documents_to_pdf, parameters);
     // load all PDFs as Data - limited only by disk IO
     let loaded_pdfs = vector_map(pdfs_to_load, preload_pdf_indexed, "_&Preloading PDFs");
@@ -384,6 +393,10 @@ pub fn load(sources: Vec<Indexed<SourcePath>>, parameters: &Parameters) {
         }
     };
     all_documents_to_merge.sort_unstable();
+    if all_documents_to_merge.is_empty() {
+        error_t!("error.no_valid_files");
+        return;
+    }
     merge_documents(
         all_documents_to_merge,
         &parameters.output_file,

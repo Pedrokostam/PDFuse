@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use std::{
     fs::File,
-    io::{BufRead, BufReader, BufWriter, Cursor, Read, Seek},
+    io::{BufRead, BufReader, Cursor, Read, Seek},
     path::{Path, PathBuf},
 };
 
@@ -125,7 +125,14 @@ impl LoadedImage2 {
         Self::load_impl(reader, source_path)
     }
 
-    pub fn get_pdf_payload(self) -> Vec<u8> {
+    /// Encode the image into a container that `lopdf::xobject::image_from` accepts.
+    ///
+    /// - `lossless == false`: JPEG at `quality` (1-100) -> lopdf keeps it as DCTDecode
+    ///   (no re-encode).
+    /// - `lossless == true`: PNG -> lopdf Flate-compresses the decoded pixels.
+    ///
+    /// The `Raw`/JPEG branch passes the original file bytes through unchanged.
+    pub fn get_pdf_payload(self, lossless: bool, quality: u8) -> Vec<u8> {
         match self.data {
             ImageData::Raw {
                 file_data,
@@ -134,14 +141,21 @@ impl LoadedImage2 {
                 format: _,
             } => file_data,
             ImageData::Dynamic(dynamic_image) => {
-                let payload = Vec::with_capacity(3 * 1024 * 1024);
-                let cursor = Cursor::new(payload);
-                let mut writer = BufWriter::new(cursor);
-                let _ = dynamic_image.write_to(&mut writer, image::ImageFormat::Bmp);
-                writer
-                    .into_inner()
-                    .expect("Encoding to BMP should not fail")
-                    .into_inner()
+                let mut cursor = Cursor::new(Vec::with_capacity(3 * 1024 * 1024));
+                if lossless {
+                    dynamic_image
+                        .write_to(&mut cursor, image::ImageFormat::Png)
+                        .expect("Encoding to PNG should not fail");
+                } else {
+                    let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(
+                        &mut cursor,
+                        quality.clamp(1, 100),
+                    );
+                    dynamic_image
+                        .write_with_encoder(encoder)
+                        .expect("Encoding to JPEG should not fail");
+                }
+                cursor.into_inner()
             }
         }
     }

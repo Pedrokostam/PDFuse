@@ -1,4 +1,5 @@
 use pdfuse_parameters::path::SafePath;
+use pdfuse_sizing::{paper::CustomPage, Unit};
 use pdfuse_utils::write_t;
 use std::{fmt::Display, process::ExitStatus};
 use thiserror::Error;
@@ -70,6 +71,11 @@ pub enum ImageLoadError {
     UnknownFormat(SafePath),
     UnknownPixelType(SafePath),
     UnreadableFile(#[from] std::io::Error),
+    MarginTooLarge {
+        path: SafePath,
+        page: CustomPage,
+        margin: CustomPage,
+    },
 }
 impl Display for ImageLoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -79,6 +85,13 @@ impl Display for ImageLoadError {
                 write_t!(f, "error.image_invalid_pixel_type", path = p)
             },
             ImageLoadError::UnreadableFile(error) => {write!(f, "{}", error)},
+            ImageLoadError::MarginTooLarge { path, page, margin } => write_t!(
+                f,
+                "error.margin_too_large",
+                path = path,
+                page = page.as_unit_string(Unit::Millimeter),
+                margin = margin.as_unit_string(Unit::Millimeter)
+            ),
         }
     }
 }

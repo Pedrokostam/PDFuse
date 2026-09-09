@@ -16,17 +16,6 @@ rayon.workspace=true
 regex = {workspace = true}
 anyhow = { workspace = true }
 thiserror.workspace=true
-printpdf = { version = "0.9.1", features = [
-    "bmp",
-    "gif",
-    "jpeg",
-    "png",
-    "pnm",
-    "tga",
-    "tiff",
-    "webp",
-    "ico",
-] }
 [lints]
 workspace = true
 
