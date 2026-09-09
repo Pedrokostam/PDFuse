@@ -57,6 +57,7 @@ pub fn main() {
             continue;
         }
         let doc = load_result.expect("Doc should already be loaded");
+        println!("{:?}",doc.page_sizes());
         if doc.page_count() == 0 {
             println!("\x1b[33mDocument has no pages\x1b[0m");
             continue;

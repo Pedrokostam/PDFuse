@@ -720,6 +720,7 @@ pub fn merge_documents(
         ..Default::default()
     };
     output_document.compress();
+    print!("Saving document with {} pages",output_document.page_iter().count());
     let mut file = File::create(output_path).expect("Destination should be writable");
     let _ = output_document.save_with_options(&mut file, options);
     // output_document.save(output_path).unwrap();

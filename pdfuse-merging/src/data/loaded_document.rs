@@ -52,7 +52,7 @@ impl LoadedDocument {
         LoadedDocument { source_paths, data }
     }
     pub fn page_count(&self) -> usize {
-        self.data.get_pages().len()
+        self.data.page_iter().count()
     }
     // pub fn source_path(&self) -> &SafePath {
     //     &self.source_paths
