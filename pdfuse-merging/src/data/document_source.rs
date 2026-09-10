@@ -27,6 +27,13 @@ impl DocumentSources {
         DocumentSources::Multiple(veccy)
     }
 
+    /// True when this document bundles several source files (image runs), in
+    /// which case each source maps to one page. `Single` sources (a PDF or a
+    /// lone image) map one title to the whole file's first page.
+    pub(crate) fn is_multi(&self) -> bool {
+        matches!(self, DocumentSources::Multiple(_))
+    }
+
     pub fn get_source_bookmarks(&self, option: Bookmarks, starting_index: usize) -> Vec<String> {
         match option {
             Bookmarks::None => vec![],

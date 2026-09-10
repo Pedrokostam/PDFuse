@@ -4,12 +4,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize, PartialEq, Eq)]
 #[derive(Default)]
 pub enum Bookmarks{
-    /// No bookmarks are added to the document.
+    /// No per-file bookmark is generated. Bookmarks already present in the
+    /// input documents are still preserved.
     None,
-    /// Bookmark contains only index.
+    /// A per-file bookmark containing only the index is generated.
     #[default]
     Index,
-    /// Bookmark contains index and filename.
+    /// A per-file bookmark containing the index and filename is generated.
     IndexName,
 }
 

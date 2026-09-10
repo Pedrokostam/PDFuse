@@ -19,14 +19,13 @@ pub use loaded_document::LoadedDocument;
 pub use loaded_image::LoadedImage;
 
 use crate::{conditional_slow_down, error::DocumentLoadError};
+mod bookmarks;
 mod document_source;
 mod imager;
 mod loaded_document;
 mod loaded_image;
 mod optional_thread;
 mod size_guide;
-// mod bookmarks;
-// pub use bookmarks::extract_bookmarks;
 use optional_thread::OptionalThread;
 
 /// Applies `f` to each element of `iter` and collects the results into a `Vec`
@@ -41,6 +40,10 @@ where
         .map(f)
         .collect()
 }
+
+/// Blue, used for the per-file bookmarks PDFuse generates so they read as
+/// distinct from bookmarks carried over from the input documents (black).
+const FILE_BOOKMARK_COLOR: [f32; 3] = [0.0, 0.0, 1.0];
 
 pub enum Data {
     Image(LoadedImage),
@@ -504,76 +507,57 @@ pub fn merge_documents(
         documents.is_sorted_by_key(|i| i.index()),
         "Indices are out-of-order in merge_documents!"
     );
-    let mut first_page_of_doc = true;
     let mut bookmark_count = 0;
     for result in documents {
         if result.value().is_err() {
             errors.push(result.index());
             continue;
         }
-        let (index, res_loaded_document) = result.deconstruct();
+        let (_index, res_loaded_document) = result.deconstruct();
         let loaded_document = res_loaded_document.expect("Already checked for errors");
-        let path = loaded_document.source_paths().to_string();
-        let b = loaded_document
-            .source_paths()
-            .get_source_bookmarks(bookmark, bookmark_count);
-        bookmark_count += b.len();
+        let sources = loaded_document.source_paths();
+        let titles = sources.get_source_bookmarks(bookmark, bookmark_count);
+        let is_multi = sources.is_multi();
+        bookmark_count += titles.len();
 
         let mut iterated_document: Document = loaded_document.into();
-        let _ = iterated_document.save("interim.pdf").expect("interim failed");
         iterated_document.renumber_objects_with(max_id);
         max_id = iterated_document.max_id + 1;
-        let mut output_bookmark_parent: Option<u32> = None;
-        let pages_to_add = iterated_document
-            .get_pages()
-            .into_values()
-            .map(|object_id| {
-                if first_page_of_doc {
-                    first_page_of_doc = false;
 
-                    let bookmark_text = match bookmark {
-                        Bookmarks::None => Some("A".to_owned()),
-                        Bookmarks::Index => Some(format!("{index}")),
-                        Bookmarks::IndexName => Some(format!("{} - {}", index, path)),
-                    };
-                    if let Some(txt) = bookmark_text {
-                        let bookmark = lopdf::Bookmark::new(txt, [0.0, 0.0, 1.0], 0, object_id);
-                        let new_parent = output_document.add_bookmark(bookmark, None);
-                        output_bookmark_parent = Some(new_parent);
-                    }
-                }
-                debug!(
-                    "{:?}",
-                    iterated_document
-                        .get_object(object_id)
-                        .unwrap()
-                        .as_dict()
-                        .unwrap()
-                        .get(b"MediaBox") // <-- At this point pts are truncated!
+        // Page ids in page order, in the just-renumbered object space. The
+        // final renumber_objects() keeps bookmark page refs in sync, so ids
+        // captured here stay valid.
+        let page_ids: Vec<ObjectId> = iterated_document.get_pages().into_values().collect();
+        let fallback_page = page_ids.first().copied().unwrap_or((0, 0));
+
+        if is_multi {
+            // Image bundle: one source (hence one title) per page.
+            for (title, page_id) in titles.iter().zip(page_ids.iter()) {
+                output_document.add_bookmark(
+                    lopdf::Bookmark::new(title.clone(), FILE_BOOKMARK_COLOR, 0, *page_id),
+                    None,
                 );
-
-                for qq in iterated_document
-                    .get_object(object_id)
-                    .unwrap()
-                    .as_dict()
-                    .unwrap()
-                    .iter()
-                {
-                    debug!("śśś key: {}", String::from_utf8(qq.0.to_vec()).unwrap());
-                }
-
-                (
-                    object_id,
-                    iterated_document.get_object(object_id).unwrap().to_owned(),
+            }
+        } else {
+            // Single source (PDF or lone image): an optional per-file bookmark
+            // at the first page, with the input document's own bookmarks
+            // preserved beneath it (or at the top level when none is created).
+            let file_parent = titles.first().map(|title| {
+                output_document.add_bookmark(
+                    lopdf::Bookmark::new(title.clone(), FILE_BOOKMARK_COLOR, 0, fallback_page),
+                    None,
                 )
             });
-        output_documents_pages.extend(pages_to_add);
-        debug!("{output_bookmark_parent:?}");
-        for (_, existing_bookmark) in iterated_document.bookmark_table {
-            debug!("{existing_bookmark:?}");
-            output_document.add_bookmark(existing_bookmark, output_bookmark_parent);
+            let input = bookmarks::extract_bookmarks(&iterated_document, fallback_page);
+            bookmarks::add_to_document(&mut output_document, &input, file_parent);
         }
-        first_page_of_doc = true;
+
+        output_documents_pages.extend(page_ids.iter().map(|&page_id| {
+            (
+                page_id,
+                iterated_document.get_object(page_id).unwrap().to_owned(),
+            )
+        }));
         output_documents_objects.extend(iterated_document.objects);
     }
 
@@ -714,8 +698,12 @@ pub fn merge_documents(
         }
     }
 
+    // lopdf 0.39 writer bug: with use_object_streams the xref stream's /Index
+    // omits the ObjStm container objects (create_xref_steam iterates the stale
+    // pre-save xref.size), so the catalog living in an ObjStm is unreachable and
+    // readers see zero pages. Keep object streams off until lopdf fixes it.
     let options = SaveOptions {
-        use_object_streams: true,
+        use_object_streams: false,
         use_xref_streams: true,
         ..Default::default()
     };
